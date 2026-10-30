@@ -1,0 +1,43 @@
+# Publica una Release al subir una etiqueta vX.Y.Z. El archivo adjunto contiene solo la skill:
+#   todo-a-markdown.zip -> carpeta todo-a-markdown/ con SKILL.md y LICENSE.txt
+# La CLI se instala desde el repositorio con uv (ver README).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run python -m unittest discover -s tests
+
+      - name: Comprobar que la etiqueta coincide con pyproject.toml
+        run: |
+          version=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "La etiqueta $GITHUB_REF_NAME no coincide con pyproject.toml ($version)" >&2
+            exit 1
+          fi
+
+      - name: Empaquetar solo la skill
+        run: |
+          cd skills
+          zip -r ../todo-a-markdown.zip todo-a-markdown
+
+      - name: Notas desde el CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '/^## /{ if (f) exit; if (index($0, "## " v) == 1) { f = 1; next } } f' CHANGELOG.md > notas.md
+
+      - name: Crear la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" todo-a-markdown.zip --title "$GITHUB_REF_NAME" --notes-file notas.md

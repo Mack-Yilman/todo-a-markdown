@@ -1,0 +1,11 @@
+todo-a-markdown
+Copyright (C) 2026 Mack Chirinos
+
+Licencia: GNU Affero General Public License v3.0 o posterior (AGPL-3.0-or-later).
+
+Puedes usar, copiar, modificar y distribuir esta skill. Si distribuyes una versión
+modificada, o la ofreces como servicio en red, debes publicar su código bajo la misma
+licencia. Se entrega sin garantía.
+
+Texto completo: https://www.gnu.org/licenses/agpl-3.0.html
+Repositorio: https://github.com/Mack-Yilman/todo-a-markdown

@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.png binary
+*.pdf binary
+*.epub binary
+
+# Fuera de "Code > Download ZIP" y de los archivos de código de cada Release.
+.github/ export-ignore
+tests/ export-ignore
+ejemplos/ export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.markdownlint.json export-ignore

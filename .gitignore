@@ -1,0 +1,43 @@
+# Archivos personales del proyecto: nunca se suben
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.claude/
+.agents/
+.gemini/
+
+# Versiones anteriores y borradores (solo en local)
+historial/
+
+# Corpus real de pruebas (libros con derechos de autor, papers descargados) y salidas
+ejemplos/corpus/
+ejemplos/salidas/
+CLAUDE-SECURITY-*/
+
+# Credenciales y datos sensibles
+.env
+.env.*
+*.key
+*.pem
+*.p12
+secrets/
+credenciales*
+*.token
+
+# Python y paquetes generados
+.venv/
+__pycache__/
+*.pyc
+*.zip
+dist/
+build/
+*.egg-info/
+node_modules/
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+*.log
