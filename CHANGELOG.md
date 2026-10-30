@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 — 2026-10-30
+
+- Seguridad: los EPUB, DOCX, PPTX y XLSX que se descomprimen a más de 2 GiB se rechazan antes de abrirlos (bombas ZIP). La skill trata el contenido del documento como dato, nunca como una orden.
+- Calibre probado con AZW3, MOBI y FB2. Se reconoce también su ruta en macOS y ya no se escribe el autor de relleno «Unknown».
+- Un párrafo de libro que empieza con «# » ya no se convierte en título.
+- Un documento largo con muy pocos títulos (menos de uno por cada 20 000 palabras) sale en `revisar`, antes solo si no tenía ninguno.
+- Instalador: instala uv con winget si falta, agrega la CLI al PATH y el menú pregunta por OCR, Docling y Calibre. Sin menú: `-Calibre`.
+- Antivirus: el instalador usa un Python firmado y reemplaza el `.exe` sin firmar de uv, que Avast aislaba en cada instalación, por lanzadores que arrancan `python -m todo_a_markdown`.
+
 ## 0.1.1 — 2026-10-30
 
 - Instalación corregida en equipos sin Python: uv descargaba Python 3.15, para el que `onnxruntime` aún no publica paquetes. Ahora los comandos fijan `--python 3.13` y el paquete declara `requires-python <3.15`.

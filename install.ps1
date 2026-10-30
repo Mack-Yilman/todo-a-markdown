@@ -5,12 +5,13 @@
 #   Sin menu:  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr
 #
 # Destinos: claude-code, antigravity, descargas, todos. -Ocr instala tambien RapidOCR (PDF escaneados);
-# -Docling, el motor para papers a dos columnas (~1,6 GB).
+# -Docling, el motor para papers a dos columnas (~1,6 GB); -Calibre, para MOBI, AZW3 y FB2 (~700 MB).
+# Sin -Destino, el menu pregunta por cada uno. Si falta uv, se instala con winget.
 # El archivo es solo ASCII a proposito: los textos con tilde usan \uXXXX (funcion T), asi funciona
 # igual en Windows PowerShell 5.1 y PowerShell 7 sin depender de la codificacion. Nunca pases una
 # ruta por T: Regex.Unescape fallaria con "\U" de C:\Users.
 # Sin [ValidateSet]: con "irm | iex" el param se evalua como variable vacia y la validacion rompe el script.
-param([string]$Destino, [switch]$Ocr, [switch]$Docling)
+param([string]$Destino, [switch]$Ocr, [switch]$Docling, [switch]$Calibre)
 
 # Todo corre en un ambito hijo para no dejar variables ni preferencias en la sesion de quien usa "irm | iex".
 & {
@@ -74,13 +75,70 @@ param([string]$Destino, [switch]$Ocr, [switch]$Docling)
         if ($Ocr) { $extras += 'ocr' }
         if ($Docling) { $extras += 'docling' }
         $paquete = if ($extras) { "$nombre[$($extras -join ',')] @ git+https://github.com/$repo" } else { "git+https://github.com/$repo" }
-        if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-            Write-Warning ((T 'No encontr\u00e9 uv. Inst\u00e1lalo (winget install astral-sh.uv) y ejecuta: uv tool install --python 3.13 --force "') + $paquete + '"')
+        if (-not (Install-Uv)) {
+            Write-Warning ((T 'No pude instalar uv. Inst\u00e1lalo (https://docs.astral.sh/uv/) y ejecuta: uv tool install --python 3.13 --force "') + $paquete + '"')
             return
         }
+        Install-Python
         & uv tool install --python 3.13 --force $paquete
         if ($LASTEXITCODE -ne 0) { throw (T 'uv no pudo instalar la CLI.') }
+        Install-Lanzador
+        # Sin esto, en un equipo sin uv previo el comando no aparece en las sesiones nuevas. Quien fija UV_TOOL_BIN_DIR gestiona su PATH.
+        if (-not $env:UV_TOOL_BIN_DIR) { & uv tool update-shell | Out-Host }
         Write-Hecho 'CLI' 'todo-a-markdown'
+    }
+
+    # El Python que descarga uv no esta firmado y los antivirus lo interceptan (CyberCapture de Avast); el de winget si lo esta.
+    function Install-Python {
+        if ([IO.Path]::DirectorySeparatorChar -ne '\') { return }
+        $ErrorActionPreference = 'Continue'  # en PowerShell 5.1, el stderr redirigido de un programa cuenta como error
+        & uv python find 3.13 --no-python-downloads *> $null
+        if ($LASTEXITCODE -eq 0) { return }
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            & winget install --id Python.Python.3.13 --exact --silent --accept-source-agreements --accept-package-agreements | Out-Host
+        }
+    }
+
+    # El .exe que genera uv no esta firmado y cambia en cada instalacion, asi que los antivirus lo aislan (Autosandbox de Avast).
+    # Se reemplaza por lanzadores de texto que arrancan el python.exe firmado del entorno: uno para cmd y PowerShell, otro para Git Bash.
+    # shortcut: "uv tool upgrade" vuelve a crear el .exe, que sigue funcionando; repetir este instalador lo quita.
+    function Install-Lanzador {
+        if ([IO.Path]::DirectorySeparatorChar -ne '\') { return }
+        $bin = "$(& uv tool dir --bin)".Trim()
+        $python = Join-Path "$(& uv tool dir)".Trim() "$nombre\Scripts\python.exe"
+        if (-not (Test-Path $python)) { return }
+        # El .cmd se lee con la pagina de codigos de la consola: %APPDATA% evita escribir tildes del nombre de usuario.
+        $python = $python.Replace($env:APPDATA, '%APPDATA%')
+        $sinBom = New-Object Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText((Join-Path $bin "$nombre.cmd"), "@`"$python`" -m todo_a_markdown %*`r`n", $sinBom)
+        [IO.File]::WriteAllText((Join-Path $bin $nombre), "#!/bin/sh`nexec `"`$(dirname `"`$0`")/$nombre.cmd`" `"`$@`"`n", $sinBom)
+        Remove-Item (Join-Path $bin "$nombre.exe") -Force -ErrorAction SilentlyContinue
+    }
+
+    function Install-Uv {
+        if (Get-Command uv -ErrorAction SilentlyContinue) { return $true }
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return $false }
+        & winget install --id astral-sh.uv --exact --silent --accept-source-agreements --accept-package-agreements | Out-Host
+        # winget no refresca el PATH de esta sesion.
+        $env:Path = (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links') + [IO.Path]::PathSeparator + $env:Path
+        [bool](Get-Command uv -ErrorAction SilentlyContinue)
+    }
+
+    # Si falla, la CLI funciona igual con los demas formatos: solo se avisa.
+    function Install-Calibre {
+        if ((Get-Command ebook-convert -ErrorAction SilentlyContinue) -or (Test-Path "$env:ProgramFiles\Calibre2\ebook-convert.exe")) {
+            Write-Hecho 'Calibre' (T 'ya estaba instalado')
+            return
+        }
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            & winget install --id calibre.calibre --exact --silent --accept-source-agreements --accept-package-agreements | Out-Host
+            if ($LASTEXITCODE -eq 0) { Write-Hecho 'Calibre' 'ebook-convert'; return }
+        }
+        Write-Warning (T 'No pude instalar Calibre. Desc\u00e1rgalo de https://calibre-ebook.com para convertir MOBI, AZW3 y FB2.')
+    }
+
+    function Confirmar([string]$pregunta) {
+        "$(Read-Host ($pregunta + ' [s/N]'))".Trim() -match '^[sSyY]'
     }
 
     # Copia la skill en una carpeta de skills. Reemplaza una instalacion anterior, salvo que sea un clon de git.
@@ -137,9 +195,13 @@ param([string]$Destino, [switch]$Ocr, [switch]$Docling)
         $eleccion = "$(Read-Host (T 'Escribe un n\u00famero'))".Trim()
         if (-not $opciones.Contains($eleccion)) { throw ((T 'Opci\u00f3n no v\u00e1lida: ') + $eleccion) }
         $Destino = $opciones[$eleccion]
+        if (-not $Ocr) { $Ocr = Confirmar (T '\u00bfInstalar OCR para PDF escaneados (~150 MB)?') }
+        if (-not $Docling) { $Docling = Confirmar (T '\u00bfInstalar Docling para papers a dos columnas (~1,6 GB)?') }
+        if (-not $Calibre) { $Calibre = Confirmar (T '\u00bfInstalar Calibre para MOBI, AZW3 y FB2 (~700 MB)?') }
     }
 
     Install-Cli
+    if ($Calibre) { Install-Calibre }
     $skill = Get-Skill
     try {
         if ($Destino -eq 'todos') {

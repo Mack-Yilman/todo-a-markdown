@@ -9,7 +9,7 @@ import zipfile
 
 import lxml.html
 
-from .comun import contar_palabras, enlace_imagen, nombre_seguro, sanitizar
+from .comun import contar_palabras, enlace_imagen, nombre_seguro, sanitizar, verificar_zip
 
 BLOQUES = {"div", "section", "article", "aside", "header", "footer", "nav", "figure", "figcaption", "main", "body", "dl", "dd", "dt", "pre"}
 IMAGENES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
@@ -144,7 +144,8 @@ class ConversorEpub:
                 cabecera = ""  # el TOC y el título del capítulo dicen lo mismo: no duplicar
             return cabecera + (f"\n\n{nivel} {limpio}\n\n" if limpio else "") + cola
         if tag == "p":
-            limpio = " ".join(inner.split())
+            # «# #hashtag» o «- Autor» en un párrafo del libro no son un título ni una lista.
+            limpio = re.sub(r"^(?=(?:#{1,6}|[-+]) )", r"\\", " ".join(inner.split()))
             return cabecera + (f"\n\n{limpio}\n\n" if limpio else "") + cola
         if tag in ("strong", "b"):
             return _envolver(inner, "**") + cola
@@ -183,6 +184,7 @@ class ConversorEpub:
 
     def convertir(self):
         with zipfile.ZipFile(self.ruta) as z:
+            verificar_zip(z)
             opf = None
             try:
                 contenedor = ET.fromstring(z.read("META-INF/container.xml"))

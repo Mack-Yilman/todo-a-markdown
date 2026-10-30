@@ -4,15 +4,20 @@ import os
 import re
 import shutil
 import subprocess
+import zipfile
 
-from .comun import extraer_data_uris, quitar_data_uris
+from .comun import extraer_data_uris, quitar_data_uris, verificar_zip
 
-CALIBRE_WINDOWS = r"C:\Program Files\Calibre2\ebook-convert.exe"
+# Calibre no agrega ebook-convert al PATH en macOS, y en Windows solo al abrir una sesión nueva.
+CALIBRE_RUTAS = (r"C:\Program Files\Calibre2\ebook-convert.exe", "/Applications/calibre.app/Contents/MacOS/ebook-convert")
 
 
 def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
     from markitdown import MarkItDown
 
+    if ruta.lower().endswith((".docx", ".pptx", ".xlsx")):
+        with zipfile.ZipFile(ruta) as z:
+            verificar_zip(z)
     res = MarkItDown().convert(ruta, keep_data_uris=True)
     md = re.sub(r"[ \t]*<!--.*?-->[ \t]*\n?", "", res.markdown, flags=re.S)  # «<!-- Slide number: 1 -->»
     # Una tabla de Word sin fila de encabezado sale con un encabezado vacío: la primera fila real pasa a serlo.
@@ -25,7 +30,7 @@ def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
 
 def calibre_a_epub(ruta, carpeta_tmp):
     """Devuelve la ruta de un EPUB temporal convertido con `ebook-convert` de Calibre."""
-    exe = shutil.which("ebook-convert") or (CALIBRE_WINDOWS if os.path.exists(CALIBRE_WINDOWS) else None)
+    exe = shutil.which("ebook-convert") or next((r for r in CALIBRE_RUTAS if os.path.exists(r)), None)
     if not exe:
         raise RuntimeError("este formato necesita Calibre (ebook-convert); instálalo desde https://calibre-ebook.com")
     destino = os.path.join(carpeta_tmp, "libro.epub")

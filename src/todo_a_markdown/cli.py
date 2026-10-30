@@ -60,7 +60,8 @@ def convertir_archivo(ruta, args):
 
     carpeta_rel = nombre + "_adjuntos"
     carpeta_adj = None if args.sin_imagenes else os.path.join(destino, carpeta_rel)
-    if args.sobrescribir and os.path.isdir(os.path.join(destino, carpeta_rel)):
+    # Solo si existe el .md: sin él, la carpeta no viene de una conversión anterior y puede ser del usuario.
+    if args.sobrescribir and os.path.isfile(ruta_md) and os.path.isdir(os.path.join(destino, carpeta_rel)):
         shutil.rmtree(os.path.join(destino, carpeta_rel))  # imágenes de la conversión anterior: no dejar huérfanas
     os.makedirs(destino, exist_ok=True)
     meta = {"title": "", "author": ""}
@@ -72,7 +73,7 @@ def convertir_archivo(ruta, args):
                 origen = office.calibre_a_epub(ruta, tmp) if tipo == "calibre" else ruta
                 conv = epub.ConversorEpub(origen, carpeta_adj, carpeta_rel)
                 md = conv.convertir()
-            meta.update({k: v for k, v in conv.meta.items() if v})
+            meta.update({k: v for k, v in conv.meta.items() if v and v not in ("Unknown", "Desconocido")})  # relleno de Calibre
             fuente = {"palabras": conv.palabras_fuente}
             avisos = conv.avisos
             motor = "calibre+epub" if tipo == "calibre" else "epub"
