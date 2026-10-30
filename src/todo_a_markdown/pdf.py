@@ -40,12 +40,12 @@ def analizar(ruta):
     with pymupdf.open(ruta) as doc:
         if doc.needs_pass:
             raise ValueError("el PDF está protegido con contraseña")
-        sin_texto, palabras, derecha, cuerpo, con_columnas = 0, 0, 0, 0, []
+        sin_texto, palabras, derecha, cuerpo, con_columnas = [], 0, 0, 0, []
         for n, pagina in enumerate(doc, 1):
             texto = pagina.get_text()
             palabras += contar_palabras(texto)
             if len(texto.strip()) < 20:
-                sin_texto += 1
+                sin_texto.append(n)
             ancho = pagina.rect.width
             # x de los bloques de texto corrido (no títulos ni pies)
             xs = [b[0] for b in pagina.get_text("blocks") if b[6] == 0 and len(b[4].strip()) > 150]
@@ -63,12 +63,30 @@ def analizar(ruta):
             con_columnas = ["varias"]
         return {
             "paginas": doc.page_count,
-            "paginas_sin_texto": sin_texto,
+            "paginas_sin_texto": len(sin_texto),
+            "lista_sin_texto": sin_texto,
             "palabras": palabras,
             "paginas_columnas": con_columnas,
             "title": (meta.get("title") or "").strip(),
             "author": (meta.get("author") or "").strip(),
         }
+
+
+def _clave(texto):
+    return re.sub(r"[\W_]", "", unicodedata.normalize("NFC", texto)).lower()
+
+
+def metadatos_confiables(fuente, md):
+    """Los metadatos de un PDF a veces son de quien lo armó («REVISTA MEDICA HEREDIANA VOL», el nombre del
+    diagramador): solo se usan si el título, o el primer autor, aparecen al inicio del texto convertido."""
+    inicio = _clave(md[:8000])
+    datos = {}
+    if fuente.get("title") and _clave(fuente["title"]) in inicio:
+        datos["title"] = fuente["title"]
+    primer_autor = re.split(r"[,;]| and | y ", fuente.get("author") or "")[0]
+    if primer_autor.strip() and _clave(primer_autor) in inicio:
+        datos["author"] = fuente["author"]
+    return datos
 
 
 def _relativizar(md, carpeta_adj, carpeta_rel):

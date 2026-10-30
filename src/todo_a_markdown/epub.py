@@ -232,4 +232,6 @@ class ConversorEpub:
         # La sangría del HTML no significa nada en un EPUB, pero en Markdown 4 espacios abren un bloque de código.
         md = re.sub(r"(?m)^[ \t]+", "", md)
         md = re.sub(r"\n{3,}", "\n\n", md)
+        # Dos <i> seguidos separados por un espacio («*No* *hay devoluciones*»): un solo énfasis.
+        md = re.sub(r"(?<=[^\s*])(\*{1,2}) \1(?=[^\s*])", " ", md)
         return sanitizar(quitar_titulos_repetidos(md))

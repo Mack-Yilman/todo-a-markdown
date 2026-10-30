@@ -23,6 +23,7 @@ CAPITULO = """<?xml version="1.0" encoding="utf-8"?>
 <p>La <b>fisiología </b>del riñón explica la filtración glomerular.^[[1]]</p>
 <div>Primer bloque</div><div>Segundo bloque</div>
 <p>Más datos en josephsoninstitute.org sobre ética.</p>
+<p>El cartel decía: <i>No</i> <i>hay devoluciones</i>.</p>
 <img src="../Images/figura%201.png" alt="Nefrona"/>
 <table><tr><th>Fármaco</th><th>Dosis</th></tr><tr><td>Amoxicilina</td><td>500 mg</td></tr></table>
 <ol><li>Primero</li><li>Segundo</li></ol>
@@ -83,7 +84,8 @@ def pdf(paginas=3, escaneado=False, dos_columnas=False):
             pag.insert_textbox(pymupdf.Rect(50, 110, 290, 760), PARRAFO * 4, fontsize=10)
             pag.insert_textbox(pymupdf.Rect(310, 110, 550, 760), PARRAFO * 4, fontsize=10)
         else:
-            pag.insert_textbox(pymupdf.Rect(72, 110, 540, 760), PARRAFO * 6, fontsize=11)
+            titulo = "Guía inventada de hipertensión. " if i == 0 else ""
+            pag.insert_textbox(pymupdf.Rect(72, 110, 540, 760), titulo + PARRAFO * 6, fontsize=11)
     if not escaneado:
         doc[0].insert_image(pymupdf.Rect(72, 600, 272, 740), stream=png(300, 200))
         doc[0].insert_image(pymupdf.Rect(300, 600, 310, 610), stream=png(10, 10))  # viñeta: debe descartarse

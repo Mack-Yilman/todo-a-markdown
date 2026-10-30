@@ -82,10 +82,13 @@ def evaluar(md, ruta_md, formato, fuente):
         elif vacias and vacias >= paginas / 2:
             motivos.append(f"escaneado: {vacias} de {paginas} páginas no tienen texto; hace falta OCR (--ocr)")
         elif vacias:
-            avisos.append(f"paginas_sin_texto: {vacias} de {paginas} páginas sin texto (escaneadas o solo imagen)")
+            lista = ", ".join(map(str, fuente.get("lista_sin_texto", [])[:10]))
+            avisos.append(f"paginas_sin_texto: {vacias} de {paginas} páginas sin texto (escaneadas o solo imagen): {lista}")
         columnas = fuente.get("paginas_columnas")
-        if columnas and fuente.get("motor") != "docling":
-            donde = "varias páginas" if columnas == ["varias"] else "las páginas " + ", ".join(map(str, columnas[:10]))
+        donde = "varias páginas" if columnas == ["varias"] else "las páginas " + ", ".join(map(str, (columnas or [])[:10]))
+        if columnas and fuente.get("motor") == "docling":
+            avisos.append(f"columnas: Docling ordena mejor las columnas, pero a veces intercala barras laterales y recuadros; revisa el orden de lectura en {donde}")
+        elif columnas:
             motivos.append(f"dos_columnas: hay columnas o una barra lateral en {donde}, y el motor pymupdf a veces "
                            "las intercala; reconvierte con --motor docling o revisa el orden de lectura ahí")
         if paginas >= 4:

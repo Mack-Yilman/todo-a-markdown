@@ -75,9 +75,11 @@ def convertir_archivo(ruta, args):
             motor = "calibre+epub" if tipo == "calibre" else "epub"
         elif tipo == "pdf":
             fuente = {**pdf.analizar(ruta), "ocr": args.ocr, "motor": args.motor}
-            meta.update({k: fuente[k] for k in ("title", "author") if fuente[k]})
             motor = args.motor
             md = pdf.convertir(ruta, carpeta_adj, carpeta_rel, ocr=args.ocr, motor=motor)
+            meta.update(pdf.metadatos_confiables(fuente, md))
+            if len(re.findall(r"(?m)^# ", md)) > 1:  # secciones marcadas como H1: bajan un nivel; el H1 es el título
+                md = re.sub(r"(?m)^(#{1,5}) ", r"#\1 ", md)
         else:
             motor = "markitdown"
             md, titulo = office.convertir(ruta, carpeta_adj, carpeta_rel, nombre)

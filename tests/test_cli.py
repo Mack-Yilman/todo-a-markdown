@@ -93,6 +93,7 @@ class Epub(unittest.TestCase):
         self.assertIn("Primer bloque\n\nSegundo bloque", md)
         self.assertIn("| Amoxicilina | 500 mg |", md)
         self.assertIn("1. Primero\n2. Segundo", md)
+        self.assertIn("*No hay devoluciones*", md)  # dos <i> seguidos: un solo énfasis
         self.assertIn("corazón, señal", md)
 
     def test_ratio_de_palabras_cercano_a_uno(self):
@@ -143,6 +144,13 @@ class Pdf(unittest.TestCase):
         self.assertEqual(_limpiar("https://doi.org/ 10.1371/journal.pmed"), "https://doi.org/10.1371/journal.pmed")
         self.assertEqual(_limpiar("visita https://x.org/ and more"), "visita https://x.org/ and more")
         self.assertEqual(_limpiar("|**BFP **|"), "|**BFP** |")
+
+    def test_metadatos_solo_si_aparecen_en_el_texto(self):
+        from todo_a_markdown.pdf import metadatos_confiables
+        md = "# Características de los artículos\n\nPAMO REYNA Oscar, TURÍN RAMOS Elizabeth\n\nTexto."
+        self.assertEqual(metadatos_confiables({"title": "REVISTA MEDICA HEREDIANA VOL", "author": "JAIME FARFAN"}, md), {})
+        self.assertEqual(metadatos_confiables({"title": "Características de los artículos", "author": "Pamo Reyna Oscar; Turín"}, md),
+                         {"title": "Características de los artículos", "author": "Pamo Reyna Oscar; Turín"})
 
     def test_quita_texto_vertical(self):
         from todo_a_markdown.pdf import _limpiar
