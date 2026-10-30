@@ -28,10 +28,18 @@ En PowerShell:
 irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1 | iex
 ```
 
-Instala la CLI con [uv](https://docs.astral.sh/uv/) y te pregunta dónde copiar la skill: Claude Code, Antigravity (IDE y CLI), Descargas o todos. Sin menú y con OCR:
+Instala la CLI con [uv](https://docs.astral.sh/uv/) (si falta, instala uv con winget) y te pregunta dónde copiar la skill: Claude Code, Antigravity (IDE y CLI), Descargas o todos. También pregunta por lo opcional:
+
+| Opcional | Para qué | Ocupa |
+|---|---|---|
+| OCR | PDF escaneados | ~150 MB |
+| Docling | Papers a dos columnas | ~1,6 GB, más ~0,5 GB de modelos en el primer uso |
+| Calibre | MOBI, AZW, AZW3 y FB2 | ~700 MB |
+
+Sin menú:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr -Docling
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr -Docling -Calibre
 ```
 
 ### Solo la CLI
@@ -48,6 +56,16 @@ python -m pip install --user git+https://github.com/Mack-Yilman/todo-a-markdown
 ```
 
 Con uv no necesitas instalar Python: descarga la versión 3.13 si hace falta. Con pip, usa Python 3.11 a 3.14: `onnxruntime`, que usa el motor de PDF, aún no publica paquetes para 3.15.
+
+Calibre se instala aparte, con `winget install calibre.calibre` en Windows o desde [calibre-ebook.com](https://calibre-ebook.com). No abre libros con DRM.
+
+### Con antivirus (Avast, AVG y otros)
+
+No hace falta desactivar nada ni agregar excepciones si usas el instalador de Windows. uv genera un `todo-a-markdown.exe` sin firmar y distinto en cada instalación, y el Python que descarga tampoco está firmado, así que antivirus como Avast los aíslan o los interceptan (CyberCapture). Por eso el instalador usa o instala un Python firmado con winget y deja lanzadores de texto que arrancan el `python.exe` firmado del entorno. Sin antivirus funciona igual.
+
+- **Si instalaste con `uv tool install` o `pip` en Windows** y el antivirus interviene, ejecuta el instalador, o llama a la CLI así: `python -m todo_a_markdown`, con el Python donde la instalaste.
+- **Tras `uv tool upgrade`** vuelve el `.exe`, que funciona pero puede tardar más: repite el instalador para quitarlo.
+- **Para desinstalar:** `uv tool uninstall todo-a-markdown` y borra `todo-a-markdown` y `todo-a-markdown.cmd` de `~/.local/bin`.
 
 ### Solo la skill
 
@@ -101,7 +119,17 @@ Por cada archivo, la CLI imprime una línea JSON en la salida estándar (y una l
 - **`avisos`:** lo que conviene revisar aunque el estado sea `ok`, como símbolos que el original no guarda bien, páginas leídas con OCR o encabezados repetidos.
 - **Código de salida:** 0 si todo está `ok`, 1 si hay algún `revisar` y 2 si hay algún `error`.
 
+## Seguridad
+
+Un documento descargado puede estar hecho a propósito para atacar a quien lo abre:
+
+- **Fallos en los lectores:** la CLI usa PyMuPDF, Calibre y otras bibliotecas que pueden tener errores. Actualízalas con `uv tool upgrade todo-a-markdown` y Calibre con su instalador, y pasa el antivirus por los archivos de origen dudoso antes de convertirlos.
+- **Bombas ZIP:** un EPUB o un archivo de Office que se descomprime a más de 2 GiB se rechaza.
+- **Órdenes ocultas:** un documento puede traer texto dirigido a tu agente de IA. La skill le indica que lo trate como dato y te avise, pero ningún modelo es infalible: no le des permisos de más al convertir archivos que no conoces.
+
 ## Limitaciones conocidas
+
+- **Libros de mala calidad:** algunos MOBI y AZW3 traen todo como párrafos, sin capítulos, y con errores de reconocimiento («H8RENBERG»). La CLI no los inventa ni los corrige: si faltan títulos, el informe marca `sin_titulos`.
 
 - **Símbolos sin Unicode:** algunos PDF guardan `≤`, `≥`, `±` o letras griegas con fuentes sin código de texto. Ningún extractor los recupera; salen como `�` y el informe lo avisa con un ejemplo para que lo revises en el original.
 - **OCR:** RapidOCR lee bien el español, pero puede equivocarse en cifras, dosis, nombres y tablas, y mezclar columnas. Por eso un PDF leído con OCR siempre sale en `revisar`.

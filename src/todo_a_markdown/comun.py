@@ -13,6 +13,14 @@ DOMINIOS_NEUTRALIZAR = ["josephsoninstitute.org"]
 
 WIKILINK_FALSO = re.compile(r"\^?\[\[(\d+)\]\]")
 
+MAX_DESCOMPRIMIDO = 2 * 1024**3  # un EPUB u Office real no llega a esto; una bomba ZIP agotaría la RAM
+
+
+def verificar_zip(z):
+    """Rechaza una bomba ZIP antes de descomprimir (zipfile no entrega más de lo que declara file_size)."""
+    if sum(i.file_size for i in z.infolist()) > MAX_DESCOMPRIMIDO:
+        raise ValueError("el archivo se descomprime a más de 2 GiB: no se abre porque puede ser una bomba ZIP")
+
 
 def sanitizar(texto):
     """Notas al pie `[[1]]` o `^[[1]]` → `(1)` (Obsidian las tomaría por wikilinks) y dominios neutralizados."""
@@ -55,6 +63,8 @@ def enlace_imagen(carpeta_rel, archivo, alt=""):
     return f"![{alt}]({urllib.parse.quote(carpeta_rel + '/' + archivo)})"
 
 
+EXTENSIONES_IMAGEN = {"png": "png", "jpeg": "jpg", "jpg": "jpg", "gif": "gif", "webp": "webp", "bmp": "bmp", "tiff": "tiff",
+                      "svg+xml": "svg", "x-emf": "emf", "emf": "emf", "x-wmf": "wmf", "wmf": "wmf"}
 DATA_URI = re.compile(r"!\[([^\]]*)\]\(data:image/([\w.+-]+);base64,([A-Za-z0-9+/=\s]+)\)")
 
 
@@ -68,8 +78,10 @@ def extraer_data_uris(md, carpeta_adj, carpeta_rel, prefijo):
             contenido = base64.b64decode(re.sub(r"\s", "", datos), validate=True)
         except ValueError:
             return f"*[imagen ilegible: {alt}]*" if alt else ""
+        ext = EXTENSIONES_IMAGEN.get(tipo)  # el tipo lo dicta el documento: «data:image/exe» no debe crear un .exe
+        if not ext:
+            return f"*[imagen ilegible: {alt}]*" if alt else ""
         contador[0] += 1
-        ext = {"jpeg": "jpg", "svg+xml": "svg", "x-emf": "emf", "x-wmf": "wmf"}.get(tipo, tipo)
         archivo = f"{nombre_seguro(prefijo)}-{contador[0]:03d}.{ext}"
         os.makedirs(carpeta_adj, exist_ok=True)
         with open(os.path.join(carpeta_adj, archivo), "wb") as f:

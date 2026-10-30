@@ -15,6 +15,7 @@ TITULO = re.compile(r"^(#{1,6}) \S", re.M)
 RATIO_MIN = {"pdf": 0.85, "epub": 0.9}  # el PDF pierde encabezados, pies y números de página a propósito
 RATIO_MAX = 1.15
 PALABRAS_DOC_LARGO = 3000
+PALABRAS_POR_SECCION = 20000  # un libro de 100 000 palabras con un solo ## tampoco se puede navegar
 
 
 def _cuerpo(md):
@@ -29,8 +30,9 @@ def evaluar(md, ruta_md, formato, fuente):
 
     niveles = [len(h) for h in TITULO.findall(cuerpo)]
     m["titulos"] = {f"h{n}": niveles.count(n) for n in range(1, 4) if niveles.count(n)}
-    if m["palabras"] > PALABRAS_DOC_LARGO and not any(n >= 2 for n in niveles):
-        motivos.append("sin_titulos: documento largo sin títulos ## ni ###; la navegación en Obsidian será pobre")
+    secciones = sum(n >= 2 for n in niveles)
+    if m["palabras"] > PALABRAS_DOC_LARGO and secciones < max(1, m["palabras"] // PALABRAS_POR_SECCION):
+        motivos.append(f"sin_titulos: documento largo con pocos títulos ## o ### ({secciones}); la navegación en Obsidian será pobre")
     saltos = sum(1 for a, b in zip(niveles, niveles[1:]) if b > a + 1)
     if saltos:
         avisos.append(f"saltos_de_nivel: {saltos} títulos saltan un nivel (p. ej., # → ###)")
@@ -69,7 +71,8 @@ def evaluar(md, ruta_md, formato, fuente):
 
     base = os.path.dirname(ruta_md)
     imagenes = [urllib.parse.unquote(u) for u in IMAGEN.findall(cuerpo) if not u.startswith(("http:", "https:", "data:"))]
-    rotas = [u for u in imagenes if not os.path.exists(os.path.join(base, u))]
+    # Una ruta absoluta nunca es nuestra, y consultar \\servidor\x en Windows le enviaría a ese servidor el hash NTLM del usuario.
+    rotas = [u for u in imagenes if u.startswith(("\\", "/")) or os.path.isabs(u) or not os.path.exists(os.path.join(base, u))]
     m["imagenes"], m["imagenes_rotas"] = len(imagenes), len(rotas)
     if rotas:
         motivos.append(f"imagenes_rotas: {len(rotas)} imágenes enlazadas no existen (p. ej., {rotas[0]})")

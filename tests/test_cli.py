@@ -5,10 +5,13 @@ import json
 import os
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
-from todo_a_markdown import calidad, cli
+from todo_a_markdown import calidad, cli, office
 from todo_a_markdown.comun import extraer_data_uris, frontmatter, sanitizar
 
 import fixtures
@@ -362,10 +365,84 @@ class Calidad(unittest.TestCase):
         r = self.evaluar("palabra " * 4000)
         self.assertTrue(any(m.startswith("sin_titulos") for m in r["motivos"]))
 
+    def test_libro_largo_con_un_solo_titulo(self):
+        r = self.evaluar("# T\n\n## Anexo\n\n" + "palabra " * 50000)
+        self.assertTrue(any(m.startswith("sin_titulos") for m in r["motivos"]))
+
     def test_lineas_repetidas_en_pdf(self):
         md = "# T\n\n" + "\n\n".join(["Revista Inventada 2026; 1(2)", "texto distinto %d" % i][i % 2] for i in range(20))
         r = self.evaluar(md, {"paginas": 10, "paginas_sin_texto": 0}, "pdf")
         self.assertTrue(any(a.startswith("lineas_repetidas") for a in r["avisos"]))
+
+
+class Lanzador(unittest.TestCase):
+    def test_python_m_arranca_la_cli(self):  # lo usan los lanzadores de install.ps1
+        proc = subprocess.run([sys.executable, "-m", "todo_a_markdown", "--version"], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("todo-a-markdown", proc.stdout)
+
+
+class ArchivosNoConfiables(unittest.TestCase):
+    def test_bomba_zip_se_rechaza_sin_descomprimir(self):
+        d = carpeta()
+        docx = os.path.join(d, "b.docx")
+        fixtures.docx(docx)
+        epub = escribir(d, "b.epub", fixtures.epub())
+        with mock.patch("todo_a_markdown.comun.MAX_DESCOMPRIMIDO", 10):
+            codigo, informes = correr(epub, docx)
+        self.assertEqual(codigo, 2)
+        for r in informes:
+            self.assertEqual(r["estado"], "error", r)
+            self.assertIn("bomba ZIP", r["error"])
+            self.assertFalse(os.path.exists(r["salida"]))
+
+    def test_almohadilla_o_guion_del_libro_no_dan_estructura(self):
+        capitulo = "<html><body><p># #etiqueta del libro</p><p>- Autora Inventada</p></body></html>"
+        with mock.patch.object(fixtures, "CAPITULO", capitulo):
+            ruta = escribir(carpeta(), "h.epub", fixtures.epub())
+        _, [r] = correr(ruta)
+        md = leer(r["salida"])
+        self.assertIn("\n\\# #etiqueta del libro\n", md)
+        self.assertIn("\n\\- Autora Inventada\n", md)
+        self.assertEqual(re.findall(r"(?m)^# .*$", md), ["# Libro de prueba"])
+
+    def test_ruta_de_red_no_se_consulta(self):
+        with mock.patch("os.path.exists", side_effect=AssertionError("consultó la ruta")):
+            r = calidad.evaluar("# T\n\n![](\\\\servidor\\x.png)\n\n![](%5C%5Cservidor%5Cy.png)\n", os.path.join(carpeta(), "a.md"), "html", {})
+        self.assertEqual(r["metricas"]["imagenes_rotas"], 2)
+
+    def test_data_uri_con_tipo_ejecutable_no_se_guarda(self):
+        d = carpeta()
+        md = extraer_data_uris("![x](data:image/exe;base64,TVo=)", d, "adj", "p")
+        self.assertEqual(os.listdir(d), [])
+        self.assertIn("imagen ilegible", md)
+
+    def test_sobrescribir_no_borra_carpeta_sin_md(self):
+        d = carpeta()
+        ruta = escribir(d, "a.epub", fixtures.epub())
+        ajena = os.path.join(d, "a_adjuntos")
+        os.makedirs(ajena)
+        escribir(ajena, "mio.txt", b"del usuario")
+        correr(ruta, "--sobrescribir")
+        self.assertTrue(os.path.exists(os.path.join(ajena, "mio.txt")))
+
+
+CALIBRE = shutil.which("ebook-convert") or next((r for r in office.CALIBRE_RUTAS if os.path.exists(r)), None)
+
+
+@unittest.skipUnless(CALIBRE, "Calibre ausente (normal en CI)")
+class Calibre(unittest.TestCase):
+    def test_formatos_de_kindle_y_fb2(self):
+        d = carpeta()
+        origen = escribir(d, "origen.epub", fixtures.epub())
+        for ext in ("azw3", "mobi", "fb2"):
+            with self.subTest(ext):
+                libro = os.path.join(d, f"libro.{ext}")
+                subprocess.run([CALIBRE, origen, libro], check=True, capture_output=True, stdin=subprocess.DEVNULL)
+                _, [r] = correr(libro, "-o", carpeta())
+                self.assertEqual(r["motor"], "calibre+epub", r)
+                self.assertNotEqual(r["estado"], "error", r)
+                self.assertIn("filtración glomerular", leer(r["salida"]))
 
 
 CORPUS = os.path.join(os.path.dirname(__file__), "..", "ejemplos", "corpus")
