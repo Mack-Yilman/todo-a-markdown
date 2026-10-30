@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-10-30
+
+- Nuevo: `todo-a-markdown pulir`, post-procesamiento que corrige estructura y empaquetado sin cambiar el texto. Lo mecánico lo hace solo; lo que requiere criterio llega como propuestas agrupadas para que el agente decida sin leer el libro. Una guardia compara las palabras y restaura el `.md` si algo cambió sin autorización.
+- Nuevo: `--obsidian` en `pulir`: imágenes con el título como prefijo y enlaces `![[…]]`, con `--adjuntos` para elegir la carpeta.
+- La skill pregunta si el libro va a Obsidian, pule el resultado y decide las propuestas.
+- EPUB, regresión de 0.1.2: un capítulo cuya ancla estaba dentro de un párrafo salía como `\## Título` y se perdía la navegación.
+- EPUB: las entradas del índice sin ancla ahora crean su título, y los `\r` ya no dejan bloques de líneas en blanco.
+- EPUB: las listas anidadas conservan su sangría, y un `<li>` sin cerrar ya no aplana el resto del capítulo en una sola línea.
+- EPUB: un hash en los metadatos ya no se usa como título y se evita repetir «Prólogo» bajo «Prólogo de Ana».
+
 ## 0.1.3 — 2026-10-30
 
 - Seguridad: un documento hecho a propósito (rachas de espacios, `![` o `<!--` repetidos, URL o negritas muy largas) ya no deja la conversión colgada: las expresiones regulares cuadráticas son ahora lineales.
