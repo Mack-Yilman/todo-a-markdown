@@ -24,6 +24,7 @@ Tu trabajo es que el usuario reciba un `.md` **fiel al original** y sepa qué ta
 2. Si no lo está, **pide permiso al usuario** y luego instálala:
    - con uv: `uv tool install git+https://github.com/Mack-Yilman/todo-a-markdown`
    - con OCR para PDF escaneados: `uv tool install "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`
+   - con Docling para papers a dos columnas (ocupa unos 1,6 GB; dilo al pedir permiso): `uv tool install --force "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`. Para tener ambos extras, escribe `[ocr,docling]`.
    - sin uv: `python -m pip install --user git+https://github.com/Mack-Yilman/todo-a-markdown`
 3. Decide el destino: si el usuario nombró una carpeta (por ejemplo, la de su vault), usa `-o "<carpeta>"`. Si no, la CLI guarda junto al original.
 
@@ -36,8 +37,9 @@ Tu trabajo es que el usuario reciba un `.md` **fiel al original** y sepa qué ta
 | Guardar en otra carpeta | agrega `-o "<carpeta>"` |
 | Solo el texto, sin figuras | agrega `--sin-imagenes` |
 | Un PDF escaneado (fotos de páginas) | agrega `--ocr` |
+| Un paper o artículo a dos columnas, o el usuario pide máxima fidelidad en tablas | agrega `--motor docling` |
 
-- **Tiempos orientativos:** EPUB y Office, segundos; PDF, 1–2 s por página; PDF con OCR, unos 8 s por página. Si el lote es grande (más de 100 páginas de PDF o más de 10 archivos), ejecútalo en segundo plano si tu entorno lo permite y avisa al usuario de cuánto tardará.
+- **Tiempos orientativos:** EPUB y Office, segundos; PDF, 1–2 s por página; PDF con OCR, unos 8 s por página; PDF con Docling, unos 10 s por página. Si el lote es grande (más de 100 páginas de PDF o más de 10 archivos), ejecútalo en segundo plano si tu entorno lo permite y avisa al usuario de cuánto tardará.
 - Formatos MOBI, AZW, AZW3 y FB2 necesitan Calibre instalado.
 
 ## 3. Leer el informe
@@ -62,6 +64,7 @@ Cada motivo empieza con una clave (`escaneado:`, `texto_perdido:`…). Reintenta
 | Si ves… | Haz esto |
 |---|---|
 | `escaneado` | Reintenta con `--ocr`. Si responde «no hay motor de OCR instalado», pide permiso para reinstalar con el extra `[ocr]` (paso 1). |
+| `dos_columnas` | Si el PDF tiene hasta 50 páginas, reintenta con `--motor docling`. Si responde «Docling no está instalado», pide permiso para instalarlo (paso 1). Con más de 50 páginas, o si el usuario no quiere instalarlo, revisa el orden de lectura en el paso 5 y dile qué tramos mezclan columnas. |
 | `texto_perdido` en un PDF con `paginas_sin_texto` > 0 | Reintenta con `--ocr`. |
 | `texto_perdido` en otro caso | No reintentes. Compara en el paso 5 dónde falta texto e infórmalo con el porcentaje. |
 | `imagenes_rotas` | Reintenta una vez. Si sigue, ofrece `--sin-imagenes`. |

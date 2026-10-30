@@ -122,6 +122,11 @@ def main(lote):
     todos = [n for g in GRUPOS.values() for n in g]
     informes = convertir([os.path.join(CORPUS, n) for n in todos if n not in CON_OCR], [])
     informes += convertir([os.path.join(CORPUS, n) for n in CON_OCR], ["--ocr"])
+    # Como haría la skill: los PDF a dos columnas se reconvierten con Docling.
+    dos_col = [r["archivo"] for r in informes if any(m.startswith("dos_columnas") for m in r.get("motivos", []))]
+    if dos_col:
+        nuevos = {r["archivo"]: r for r in convertir(dos_col, ["--motor", "docling"])}
+        informes = [nuevos.get(r["archivo"], r) for r in informes]
     por_nombre = {os.path.basename(r["archivo"]): r for r in informes}
 
     for grupo, nombres in GRUPOS.items():

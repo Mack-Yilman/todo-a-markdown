@@ -4,12 +4,13 @@
 #   Con menu:  irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1 | iex
 #   Sin menu:  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr
 #
-# Destinos: claude-code, antigravity, descargas, todos. -Ocr instala tambien RapidOCR (PDF escaneados).
+# Destinos: claude-code, antigravity, descargas, todos. -Ocr instala tambien RapidOCR (PDF escaneados);
+# -Docling, el motor para papers a dos columnas (~1,6 GB).
 # El archivo es solo ASCII a proposito: los textos con tilde usan \uXXXX (funcion T), asi funciona
 # igual en Windows PowerShell 5.1 y PowerShell 7 sin depender de la codificacion. Nunca pases una
 # ruta por T: Regex.Unescape fallaria con "\U" de C:\Users.
 # Sin [ValidateSet]: con "irm | iex" el param se evalua como variable vacia y la validacion rompe el script.
-param([string]$Destino, [switch]$Ocr)
+param([string]$Destino, [switch]$Ocr, [switch]$Docling)
 
 # Todo corre en un ambito hijo para no dejar variables ni preferencias en la sesion de quien usa "irm | iex".
 & {
@@ -69,7 +70,10 @@ param([string]$Destino, [switch]$Ocr)
 
     # La CLI la usan todos los agentes desde la terminal; uv la instala aislada en ~/.local/bin.
     function Install-Cli {
-        $paquete = if ($Ocr) { "$nombre[ocr] @ git+https://github.com/$repo" } else { "git+https://github.com/$repo" }
+        $extras = @()
+        if ($Ocr) { $extras += 'ocr' }
+        if ($Docling) { $extras += 'docling' }
+        $paquete = if ($extras) { "$nombre[$($extras -join ',')] @ git+https://github.com/$repo" } else { "git+https://github.com/$repo" }
         if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
             Write-Warning ((T 'No encontr\u00e9 uv. Inst\u00e1lalo (winget install astral-sh.uv) y ejecuta: uv tool install --force "') + $paquete + '"')
             return

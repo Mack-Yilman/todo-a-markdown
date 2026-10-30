@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -73,10 +74,10 @@ def convertir_archivo(ruta, args):
             avisos = conv.avisos
             motor = "calibre+epub" if tipo == "calibre" else "epub"
         elif tipo == "pdf":
-            fuente = {**pdf.analizar(ruta), "ocr": args.ocr}
+            fuente = {**pdf.analizar(ruta), "ocr": args.ocr, "motor": args.motor}
             meta.update({k: fuente[k] for k in ("title", "author") if fuente[k]})
-            motor = "pymupdf"
-            md = pdf.convertir(ruta, carpeta_adj, carpeta_rel, ocr=args.ocr)
+            motor = args.motor
+            md = pdf.convertir(ruta, carpeta_adj, carpeta_rel, ocr=args.ocr, motor=motor)
         else:
             motor = "markitdown"
             md, titulo = office.convertir(ruta, carpeta_adj, carpeta_rel, nombre)
@@ -85,8 +86,9 @@ def convertir_archivo(ruta, args):
         return {**informe, "estado": "error", "error": f"{type(e).__name__}: {e}"}
 
     md = sanitizar(md)
-    meta["title"] = meta["title"] or nombre
-    if not md.lstrip().startswith("# "):
+    primer_titulo = re.search(r"(?m)^#{1,3} (.+)$", md)
+    meta["title"] = meta["title"] or (primer_titulo and re.sub(r"[*_]", "", primer_titulo.group(1)).strip()) or nombre
+    if not re.search(r"(?m)^# ", md):  # un solo H1 al inicio, salvo que el motor ya haya puesto uno
         md = f"# {meta['title']}\n\n{md}"
     md = frontmatter({**meta, "source": os.path.basename(ruta), "format": ext.lstrip("."), "converted": hoy()}) + limpiar_saltos(md)
 
@@ -112,6 +114,9 @@ def main(argv=None):
     p.add_argument("-o", "--salida", help="carpeta de salida (por defecto, la del archivo original)")
     p.add_argument("--sin-imagenes", action="store_true", help="no extraer imágenes")
     p.add_argument("--ocr", action="store_true", help="aplicar OCR a las páginas escaneadas de un PDF")
+    p.add_argument("--motor", choices=["pymupdf", "docling"], default="pymupdf",
+                   help="motor de PDF: pymupdf (rápido, por defecto) o docling (más fiel en papers a dos columnas y tablas; "
+                   "~10 s por página; requiere el extra [docling])")
     p.add_argument("--sobrescribir", action="store_true", help="reemplazar el .md si ya existe")
     p.add_argument("-V", "--version", action="version", version=f"%(prog)s {version('todo-a-markdown')}")
     args = p.parse_args(argv)

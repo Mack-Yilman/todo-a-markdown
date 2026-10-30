@@ -6,7 +6,8 @@ Convierte libros y documentos a **Markdown limpio para Obsidian y para LLM**, y 
 |---|---|
 | EPUB | Conversor propio: capítulos desde el índice del libro, imágenes y notas al pie sin enlaces rotos |
 | PDF | [pymupdf4llm](https://github.com/pymupdf/pymupdf4llm): columnas, tablas y títulos; sin encabezados ni pies de página |
-| PDF escaneado | El mismo, con OCR de [RapidOCR](https://github.com/RapidAI/RapidOCR) (opcional) |
+| Paper a dos columnas o con tablas exigentes | [Docling](https://github.com/docling-project/docling) de IBM (opcional): respeta el orden de las columnas y las tablas |
+| PDF escaneado | pymupdf4llm con OCR de [RapidOCR](https://github.com/RapidAI/RapidOCR) (opcional) |
 | DOCX, PPTX, XLSX, HTML, CSV | [MarkItDown](https://github.com/microsoft/markitdown) de Microsoft, con las imágenes extraídas |
 | MOBI, AZW, AZW3, FB2 | [Calibre](https://calibre-ebook.com) los pasa a EPUB (debe estar instalado) |
 
@@ -30,7 +31,7 @@ irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.p
 Instala la CLI con [uv](https://docs.astral.sh/uv/) y te pregunta dónde copiar la skill: Claude Code, Antigravity (IDE y CLI), Descargas o todos. Sin menú y con OCR:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Mack-Yilman/todo-a-markdown/main/install.ps1))) -Destino todos -Ocr -Docling
 ```
 
 ### Solo la CLI
@@ -39,6 +40,9 @@ Instala la CLI con [uv](https://docs.astral.sh/uv/) y te pregunta dónde copiar 
 uv tool install git+https://github.com/Mack-Yilman/todo-a-markdown
 # con OCR para PDF escaneados:
 uv tool install "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
+# con Docling para papers a dos columnas (ocupa ~1,6 GB):
+uv tool install "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
+# los dos extras: [ocr,docling]
 # sin uv:
 python -m pip install --user git+https://github.com/Mack-Yilman/todo-a-markdown
 ```
@@ -68,6 +72,7 @@ todo-a-markdown "Mi libro.epub"                      # crea Mi libro.md y Mi lib
 todo-a-markdown paper.pdf -o "C:/Vault/Papers"       # en otra carpeta
 todo-a-markdown carpeta-con-documentos/              # todos los formatos soportados de una carpeta
 todo-a-markdown escaneado.pdf --ocr                  # PDF escaneado (requiere el extra [ocr])
+todo-a-markdown paper.pdf --motor docling            # paper a dos columnas (requiere el extra [docling])
 todo-a-markdown apuntes.docx --sin-imagenes          # solo el texto
 ```
 
@@ -100,13 +105,13 @@ Por cada archivo, la CLI imprime una línea JSON en la salida estándar (y una l
 
 - **Símbolos sin Unicode:** algunos PDF guardan `≤`, `≥`, `±` o letras griegas con fuentes sin código de texto. Ningún extractor los recupera; salen como `�` y el informe lo avisa con un ejemplo para que lo revises en el original.
 - **OCR:** RapidOCR lee bien el español, pero puede equivocarse en cifras, dosis, nombres y tablas. Revísalos contra el original.
-- **Docling no se incluye:** se probó como motor para PDF exigentes. En un equipo de 8 GB tardó 10 veces más que pymupdf4llm (117 s contra 12 s en un paper de 17 páginas), no mejoró las tablas y se cayó con un PDF común.
+- **Dos columnas:** el motor por defecto (pymupdf4llm) es rápido, pero a veces intercala las columnas de un paper. El informe lo detecta (`dos_columnas`) y la skill reconvierte con Docling, que las ordena bien pero tarda unos 10 s por página (un paper de 17 páginas: ~2 min en un portátil de 8 GB, con 1,5 GB de RAM).
 - No convierte páginas web por URL. Para eso usa [Defuddle](https://github.com/kepano/defuddle).
 
 ## Desarrollo
 
 ```bash
-uv sync --extra ocr
+uv sync --extra ocr --extra docling
 uv run python -m unittest discover -s tests
 ```
 

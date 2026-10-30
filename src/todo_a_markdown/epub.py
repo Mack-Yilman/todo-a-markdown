@@ -11,9 +11,26 @@ import lxml.html
 
 from .comun import contar_palabras, enlace_imagen, nombre_seguro, sanitizar
 
-IGNORAR_EN_TOC = ["portada", "créditos", "copyright", "índice", "dedicatoria", "cover", "contents"]
 BLOQUES = {"div", "section", "article", "aside", "header", "footer", "nav", "figure", "figcaption", "main", "body", "dl", "dd", "dt", "pre"}
 IMAGENES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+
+
+def _clave(texto):
+    return re.sub(r"[\W_]", "", texto).lower()
+
+
+def quitar_titulos_repetidos(md):
+    """El título del TOC y el del cuerpo suelen decir lo mismo con otra caja o puntuación
+    («## Primera parte. La elección…» y «## Primera parte La elección…», o «## Ocho objetivos» y «OCHO OBJETIVOS»):
+    se conserva el primero y se quita el bloque siguiente si repite el texto."""
+    bloques = md.split("\n\n")
+    salida = []
+    for b in bloques:
+        previo = salida[-1] if salida else ""
+        if previo.startswith("#") and b.strip() and _clave(b.lstrip("#")) == _clave(previo.lstrip("#")):
+            continue
+        salida.append(b)
+    return "\n\n".join(salida)
 
 
 def _envolver(inner, marca):
@@ -57,7 +74,7 @@ class ConversorEpub:
 
     def _agregar_toc(self, base, titulo, src):
         titulo = sanitizar(titulo)
-        if not titulo or not src or any(i in titulo.lower() for i in IGNORAR_EN_TOC):
+        if not titulo or not src:
             return
         completo = posixpath.normpath(posixpath.join(base, urllib.parse.unquote(src)))
         archivo, _, ancla = completo.partition("#")
@@ -143,7 +160,8 @@ class ConversorEpub:
                 marca = f"{[c for c in padre if c.tag == 'li'].index(el) + 1}."
             return cabecera + f"{marca} {' '.join(inner.split())}\n" + cola
         if tag in ("ul", "ol"):
-            return cabecera + f"\n\n{inner}\n\n" + cola
+            items = "\n".join(ln.strip() for ln in inner.splitlines() if ln.strip())  # sin la sangría ni los saltos del HTML
+            return cabecera + f"\n\n{items}\n\n" + cola
         if tag in BLOQUES:
             return cabecera + f"\n\n{inner}\n\n" + cola
         return cabecera + inner + cola
@@ -210,4 +228,8 @@ class ConversorEpub:
                 self.palabras_fuente += contar_palabras(" ".join(cuerpo.itertext()))
                 secciones.append(self._nodo(cuerpo, archivo))
 
-        return sanitizar("\n\n".join(secciones))
+        md = "\n\n".join(secciones)
+        # La sangría del HTML no significa nada en un EPUB, pero en Markdown 4 espacios abren un bloque de código.
+        md = re.sub(r"(?m)^[ \t]+", "", md)
+        md = re.sub(r"\n{3,}", "\n\n", md)
+        return sanitizar(quitar_titulos_repetidos(md))

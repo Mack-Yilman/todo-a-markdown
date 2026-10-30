@@ -1,7 +1,9 @@
 import contextlib
+import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -60,6 +62,12 @@ class Epub(unittest.TestCase):
         self.assertIn('title: "Libro de prueba"', md)
         self.assertIn('author: "Autora Inventada"', md)
         self.assertTrue(md.startswith("---\n"))
+
+    def test_sin_titulos_repetidos_ni_sangria(self):
+        _, _, md, _ = self.convertir()
+        self.assertEqual(md.lower().count("capítulo dos"), 1, md)  # TOC «Capítulo dos» + cuerpo «CAPÍTULO DOS»
+        self.assertIn("- Uno\n- Dos", md)
+        self.assertNotRegex(md, r"(?m)^ {4}\S")  # 4 espacios = bloque de código en Markdown
 
     def test_capitulos_desde_nav_epub3(self):
         _, r, md, _ = self.convertir(con_ncx=False)
@@ -121,6 +129,29 @@ class Pdf(unittest.TestCase):
         self.assertEqual(r["metricas"]["imagenes_rotas"], 0)
         self.assertIn("](guia_adjuntos/", leer(r["salida"]))
 
+    def test_dos_columnas_pide_docling(self):
+        d = carpeta()
+        _, [r] = correr(escribir(d, "paper.pdf", fixtures.pdf(dos_columnas=True)), "--sin-imagenes")
+        self.assertTrue(any(m.startswith("dos_columnas") for m in r["motivos"]), r)
+        _, [r] = correr(escribir(d, "simple.pdf", fixtures.pdf()), "--sin-imagenes")
+        self.assertFalse(any(m.startswith("dos_columnas") for m in r["motivos"]), r)
+
+    def test_limpieza_de_urls_y_negritas(self):
+        from todo_a_markdown.pdf import _limpiar
+        self.assertEqual(_limpiar("ver https://hdl.handle.net/20. 500.12196/CIDACS/65, y"),
+                         "ver https://hdl.handle.net/20.500.12196/CIDACS/65, y")
+        self.assertEqual(_limpiar("https://doi.org/ 10.1371/journal.pmed"), "https://doi.org/10.1371/journal.pmed")
+        self.assertEqual(_limpiar("visita https://x.org/ and more"), "visita https://x.org/ and more")
+        self.assertEqual(_limpiar("|**BFP **|"), "|**BFP** |")
+
+    @unittest.skipUnless(importlib.util.find_spec("docling"), "Docling no instalado (extra opcional)")
+    def test_docling_en_dos_columnas(self):
+        d = carpeta()
+        _, [r] = correr(escribir(d, "paper.pdf", fixtures.pdf(dos_columnas=True)), "--motor", "docling")
+        self.assertEqual(r["motor"], "docling")
+        self.assertEqual(r["estado"], "ok", r)
+        self.assertIn("hipertensión arterial", leer(r["salida"]))
+
     def test_escaneado_pide_ocr(self):
         d = carpeta()
         ruta = escribir(d, "escaneo.pdf", fixtures.pdf(paginas=2, escaneado=True))
@@ -160,6 +191,9 @@ class Office(unittest.TestCase):
         self.assertEqual(codigo, 0, informes)
         textos = {os.path.basename(r["archivo"]): leer(r["salida"]) for r in informes}
         self.assertIn("Betabloqueantes", textos["clase.pptx"])
+        self.assertNotIn("<!--", textos["clase.pptx"])
+        self.assertEqual(len(re.findall(r"(?m)^# ", textos["clase.pptx"])), 1)
+        self.assertIn("## Clase de farmacología", textos["clase.pptx"])
         self.assertIn("Caso A", textos["datos.xlsx"])
 
 

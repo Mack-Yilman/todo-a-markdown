@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ocr = ["rapidocr>=3"]
+docling = ["docling>=2"]
 
 [project.scripts]
 todo-a-markdown = "todo_a_markdown.cli:main"

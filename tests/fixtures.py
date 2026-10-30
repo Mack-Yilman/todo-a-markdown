@@ -26,7 +26,11 @@ CAPITULO = """<?xml version="1.0" encoding="utf-8"?>
 <img src="../Images/figura%201.png" alt="Nefrona"/>
 <table><tr><th>Fármaco</th><th>Dosis</th></tr><tr><td>Amoxicilina</td><td>500 mg</td></tr></table>
 <ol><li>Primero</li><li>Segundo</li></ol>
-<p class="titulo" id="cap2">Capítulo dos</p>
+<ul>
+        <li>Uno</li>
+        <li>Dos</li>
+</ul>
+<p class="titulo" id="cap2">CAPÍTULO DOS</p>
 <p>Texto del segundo capítulo con eñes y tildes: corazón, señal.</p>
 </body></html>"""
 
@@ -67,7 +71,7 @@ PARRAFO = ("La hipertensión arterial es un factor de riesgo cardiovascular modi
            "El tratamiento combina cambios en el estilo de vida y fármacos antihipertensivos. ")
 
 
-def pdf(paginas=3, escaneado=False):
+def pdf(paginas=3, escaneado=False, dos_columnas=False):
     doc = pymupdf.open()
     for i in range(paginas):
         pag = doc.new_page()
@@ -75,8 +79,11 @@ def pdf(paginas=3, escaneado=False):
             pag.insert_image(pymupdf.Rect(50, 50, 550, 750), stream=png(400, 600))
             continue
         pag.insert_text((72, 80), f"Sección {i + 1}", fontsize=20)
-        caja = pymupdf.Rect(72, 110, 540, 760)
-        pag.insert_textbox(caja, PARRAFO * 6, fontsize=11)
+        if dos_columnas:
+            pag.insert_textbox(pymupdf.Rect(50, 110, 290, 760), PARRAFO * 4, fontsize=10)
+            pag.insert_textbox(pymupdf.Rect(310, 110, 550, 760), PARRAFO * 4, fontsize=10)
+        else:
+            pag.insert_textbox(pymupdf.Rect(72, 110, 540, 760), PARRAFO * 6, fontsize=11)
     if not escaneado:
         doc[0].insert_image(pymupdf.Rect(72, 600, 272, 740), stream=png(300, 200))
         doc[0].insert_image(pymupdf.Rect(300, 600, 310, 610), stream=png(10, 10))  # viñeta: debe descartarse

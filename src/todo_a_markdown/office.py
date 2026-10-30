@@ -1,6 +1,7 @@
 """DOCX, PPTX, XLSX, HTML y CSV → Markdown con MarkItDown; MOBI/AZW3/FB2 → EPUB con Calibre."""
 
 import os
+import re
 import shutil
 import subprocess
 
@@ -13,7 +14,9 @@ def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
     from markitdown import MarkItDown
 
     res = MarkItDown().convert(ruta, keep_data_uris=True)
-    md = res.markdown
+    md = re.sub(r"[ \t]*<!--.*?-->[ \t]*\n?", "", res.markdown, flags=re.S)  # «<!-- Slide number: 1 -->»
+    if ruta.lower().endswith(".pptx"):
+        md = re.sub(r"(?m)^# ", "## ", md)  # cada diapositiva es una sección; el único H1 es el título del archivo
     md = extraer_data_uris(md, carpeta_adj, carpeta_rel, prefijo) if carpeta_adj else quitar_data_uris(md)
     return md, (res.title or "").strip()
 

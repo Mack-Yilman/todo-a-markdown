@@ -79,6 +79,9 @@ def evaluar(md, ruta_md, formato, fuente):
             motivos.append(f"escaneado: {vacias} de {paginas} páginas no tienen texto; hace falta OCR (--ocr)")
         elif vacias:
             avisos.append(f"paginas_sin_texto: {vacias} de {paginas} páginas sin texto (escaneadas o solo imagen)")
+        if fuente.get("dos_columnas") and fuente.get("motor") != "docling":
+            motivos.append("dos_columnas: el PDF está a dos columnas y el motor pymupdf a veces las intercala; "
+                           "reconvierte con --motor docling o revisa el orden de lectura")
         if paginas >= 4:
             lineas = Counter(ln.strip() for ln in cuerpo.splitlines() if 3 < len(ln.strip()) < 80 and not ln.startswith(("#", "|", "!", "<!--")))
             repetidas = [ln for ln, n in lineas.items() if n >= max(3, paginas / 2)]
