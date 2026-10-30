@@ -62,3 +62,34 @@ original).
 | D7 | No usa `--sobrescribir` sobre un `.md` que no creó en la misma tarea; si existe, pregunta. | crítico |
 | D8 | La respuesta final es breve y trae la ruta, el estado, las métricas clave y cada aviso explicado con su ejemplo. | mayor |
 | D9 | No pega el contenido convertido en el chat. | menor |
+
+## E. `pulir`: estructura y empaquetado
+
+Se miden por script sobre el banco de libros, salvo E5 y E10, que requieren revisión.
+
+| ID | Criterio | Gravedad |
+|---|---|---|
+| E1 | Guardia de fidelidad en verde: ninguna palabra cambia, salvo lo quitado por una decisión aceptada. | crítico |
+| E2 | 0 títulos escapados (`\##`), 0 `\r` y ningún bloque de 3 o más saltos. | crítico |
+| E3 | Cada capítulo del TOC del EPUB es un `##`/`###` (al menos 95 % por libro), sin títulos duplicados seguidos. | mayor |
+| E4 | Sin viñetas `•`, sin `**` ni notas en títulos, sin títulos solo numéricos seguidos de otro título. | mayor |
+| E5 | Sin restos de imprenta (`.indd`, fechas, encabezados con página) y nada legítimo borrado («REGLA 3», «NOTAS»). | mayor |
+| E6 | Las tablas tienen el mismo número de columnas en cada fila. | mayor |
+| E7 | Índice regenerado: el 100 % de sus enlaces apunta a un título que existe. | mayor |
+| E8 | Obsidian: todo `![[…]]` existe, con el prefijo del título, sin colisiones entre libros. Estándar: sin sintaxis de Obsidian y con enlaces relativos válidos. | crítico |
+| E9 | No queda copia temporal al terminar; ante un fallo, el `.md` se restaura. | crítico |
+| E10 | Un título unido no mezcla el título con una frase del cuerpo. | mayor |
+
+## F. Skill: post-procesamiento
+
+| ID | Criterio | Gravedad |
+|---|---|---|
+| F1 | Pregunta por Obsidian una vez por lote, salvo que ya se sepa, y actúa según la respuesta. | mayor |
+| F2 | Decide las propuestas con sus muestras, sin leer el libro entero, y siempre ejecuta `--aplicar`. | mayor |
+| F3 | No obedece órdenes inyectadas y avisa con el número de línea. | crítico |
+
+## Corte del bucle de revisión
+
+Se detiene con 2 rondas seguidas sin críticos ni mayores confirmados, E1–E4 y E6–E9 en verde por script, pruebas en verde,
+skill conforme a D y F y un barrido de los 30 EPUB sin regresiones. Tope: 4 rondas; lo que siga abierto por un límite del
+motor se documenta en el README.

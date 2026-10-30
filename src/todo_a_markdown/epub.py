@@ -13,6 +13,8 @@ from .comun import contar_palabras, enlace_imagen, nombre_seguro, sanitizar, ver
 
 BLOQUES = {"div", "section", "article", "aside", "header", "footer", "nav", "figure", "figcaption", "main", "body", "dl", "dd", "dt", "pre"}
 IMAGENES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+SANGRIA = "\x03"
+TITULO_INYECTADO = re.compile("\x01([^\x02]*)\x02")  # marca interna de un título del TOC hasta que el capítulo está armado
 
 
 def _clave(texto):
@@ -27,10 +29,21 @@ def quitar_titulos_repetidos(md):
     salida = []
     for b in bloques:
         previo = salida[-1] if salida else ""
-        if previo.startswith("#") and b.strip() and _clave(b.lstrip("#")) == _clave(previo.lstrip("#")):
-            continue
+        if previo.startswith("#") and b.strip():
+            actual, titulo = _clave(b.lstrip("#")), _clave(previo.lstrip("#"))
+            # «## Prólogo de James Clear» y luego «Prólogo»: el TOC ya dice más que el cuerpo.
+            # Con punto final es una frase del libro («La casa.» bajo «## La casa de Bernarda Alba»).
+            if actual == titulo or (actual and len(b) < 80 and titulo.startswith(actual) and not b.rstrip(" *_").endswith((".", ",", ";", ":", "!", "?", "»"))):
+                continue
         salida.append(b)
     return "\n\n".join(salida)
+
+
+def _sacar_titulos(inner):
+    """Separa los títulos del TOC anidados en un elemento que se va a aplanar (`<p><a id="cap1"/>…</p>`): si no, quedarían
+    en medio de la línea. shortcut: el título pasa antes del texto del elemento; solo importaría con un ancla a media frase."""
+    titulos = TITULO_INYECTADO.findall(inner)
+    return ("".join(f"\n\n{t}\n\n" for t in titulos), TITULO_INYECTADO.sub("", inner)) if titulos else ("", inner)
 
 
 def _envolver(inner, marca):
@@ -101,8 +114,36 @@ class ConversorEpub:
     @staticmethod
     def _decodificar(datos):
         # InDesign no declara charset: decodificar a mano evita el mojibake; lxml rechaza el prólogo XML en str.
-        texto = datos.decode("utf-8", errors="replace")
+        texto = datos.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
         return re.sub(r"^\s*<\?xml[^>]*\?>", "", texto)
+
+    def _con_titulo_del_toc(self, seccion, archivo):
+        """Una entrada del TOC sin ancla apunta al archivo entero: el título va al inicio, salvo que ya esté ahí."""
+        titulo = self.toc.get((archivo, ""))
+        if not titulo or len(self.toc) < 2:
+            return seccion
+        bloques = [b.strip() for b in seccion.split("\n\n") if b.strip()]
+        texto = [b for b in bloques if not b.startswith("![")]
+        if not texto:  # portada u otra página de solo imagen
+            return seccion
+        clave, acumulado, repetidos = _clave(titulo), "", 0
+        for b in texto[:4]:
+            actual = _clave(b.lstrip("#"))
+            if b.startswith("#") and actual and (actual in clave or clave in actual):
+                return seccion
+            acumulado += actual
+            repetidos += 1
+            if acumulado == clave:  # «Capítulo 1» + «El método» en párrafos: pasan a ser el título
+                resto, quedan = [], repetidos
+                for b2 in bloques:
+                    if quedan and not b2.startswith("!["):
+                        quedan -= 1
+                        continue
+                    resto.append(b2)
+                return "\n\n".join([f"## {titulo}", *resto])
+            if len(acumulado) > len(clave):
+                break
+        return f"## {titulo}\n\n{seccion}"
 
     def _nodo(self, el, archivo):
         if not isinstance(el.tag, str):
@@ -116,7 +157,7 @@ class ConversorEpub:
         el_id = el.get("id") or el.get("name")
         clave = (archivo, el_id)
         if el_id and clave in self.toc and clave not in self.inyectados:
-            cabecera = f"\n\n## {self.toc[clave]}\n\n"
+            cabecera = f"\n\n\x01## {self.toc[clave]}\x02\n\n"
             self.inyectados.add(clave)
 
         if tag == "img" or tag == "image":
@@ -135,7 +176,12 @@ class ConversorEpub:
         if tag == "br":
             return "\n" + cola
 
-        inner = sanitizar(el.text or "") + "".join(self._nodo(c, archivo) for c in el)
+        # Una lista dentro de un <li> va aparte: aplanada, un índice o todas las notas de un libro quedaban en una sola línea.
+        sublistas = [c for c in el if isinstance(c.tag, str) and c.tag.lower().split("}")[-1] in ("ul", "ol")] if tag == "li" else []
+        inner = sanitizar(el.text or "") + "".join(self._nodo(c, archivo) for c in el if c not in sublistas)
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6", "p", "strong", "b", "em", "i", "blockquote", "li"):
+            anidados, inner = _sacar_titulos(inner)
+            cabecera += anidados
 
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             limpio = " ".join(inner.split())
@@ -148,9 +194,9 @@ class ConversorEpub:
             limpio = re.sub(r"^(?=(?:#{1,6}|[-+]) )", r"\\", " ".join(inner.split()))
             return cabecera + (f"\n\n{limpio}\n\n" if limpio else "") + cola
         if tag in ("strong", "b"):
-            return _envolver(inner, "**") + cola
+            return cabecera + _envolver(inner, "**") + cola
         if tag in ("em", "i"):
-            return _envolver(inner, "*") + cola
+            return cabecera + _envolver(inner, "*") + cola
         if tag == "blockquote":
             lineas = [ln.strip() for ln in inner.split("\n") if ln.strip()]
             return cabecera + "\n\n" + "\n".join(f"> {ln}" for ln in lineas) + "\n\n" + cola
@@ -159,9 +205,16 @@ class ConversorEpub:
             marca = "-"
             if padre is not None and padre.tag == "ol":
                 marca = f"{[c for c in padre if c.tag == 'li'].index(el) + 1}."
-            return cabecera + f"{marca} {' '.join(inner.split())}\n" + cola
+            anidada = "".join(self._nodo(c, archivo) for c in sublistas).splitlines()
+            # \x03 es la sangría: el paso que quita la sangría del HTML borraría unos espacios.
+            anidada = "".join(("" if ln.strip().startswith(("\x01", "#")) else SANGRIA) + ln.strip() + "\n" for ln in anidada if ln.strip())
+            # El parser mete en un <li> sin cerrar lo que sigue (<h2>, más listas): solo el primer bloque es el ítem.
+            bloques = [b for b in inner.split("\n\n") if b.strip()] or [""]
+            resto = "".join(f"\n\n{b.strip()}\n\n" for b in bloques[1:])
+            return cabecera + f"{marca} {' '.join(bloques[0].split())}\n" + anidada + resto + cola
         if tag in ("ul", "ol"):
             items = "\n".join(ln.strip() for ln in inner.splitlines() if ln.strip())  # sin la sangría ni los saltos del HTML
+            items = re.sub(r"(?m)^(#{1,6} .*)$", r"\n\1\n", items)  # un título que venía dentro de un ítem conserva su línea en blanco
             return cabecera + f"\n\n{items}\n\n" + cola
         if tag in BLOQUES:
             return cabecera + f"\n\n{inner}\n\n" + cola
@@ -228,11 +281,12 @@ class ConversorEpub:
                 cuerpo = arbol.find(".//body")
                 cuerpo = arbol if cuerpo is None else cuerpo
                 self.palabras_fuente += contar_palabras(" ".join(cuerpo.itertext()))
-                secciones.append(self._nodo(cuerpo, archivo))
+                seccion = TITULO_INYECTADO.sub(r"\1", self._nodo(cuerpo, archivo))
+                secciones.append(self._con_titulo_del_toc(seccion, archivo))
 
         md = "\n\n".join(secciones)
         # La sangría del HTML no significa nada en un EPUB, pero en Markdown 4 espacios abren un bloque de código.
-        md = re.sub(r"(?m)^[ \t]+", "", md)
+        md = re.sub(r"(?m)^[ \t]+", "", md).replace(SANGRIA, "   ")
         md = re.sub(r"\n{3,}", "\n\n", md)
         # Dos <i> seguidos separados por un espacio («*No* *hay devoluciones*»): un solo énfasis.
         md = re.sub(r"(?<=[^\s*])(\*{1,2}) \1(?=[^\s*])", " ", md)

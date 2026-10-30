@@ -99,6 +99,7 @@ def quitar_data_uris(md):
 
 def limpiar_saltos(md):
     # Sin regex: `[ \t]+\n` es cuadrático con una racha larga de espacios que no acaba en salto de línea.
+    md = md.replace("\r\n", "\n").replace("\r", "\n")
     md = "\n".join(linea.rstrip(" \t") for linea in md.split("\n"))
     return re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
 

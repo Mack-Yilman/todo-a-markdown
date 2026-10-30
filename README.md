@@ -14,7 +14,7 @@ Convierte libros y documentos a **Markdown limpio para Obsidian y para LLM**, y 
 Son dos piezas:
 
 - **La CLI `todo-a-markdown`** convierte y emite un informe de calidad por archivo.
-- **La skill** enseña a tu agente a usar la CLI, leer el informe, reintentar con otras opciones cuando hace falta, revisar el resultado por muestreo y explicarte en lenguaje simple qué revisar. No resume ni reescribe tu documento.
+- **La skill** enseña a tu agente a usar la CLI, leer el informe, reintentar con otras opciones cuando hace falta, revisar el resultado por muestreo, **corregir la estructura** con `pulir` y explicarte en lenguaje simple qué revisar. No resume ni reescribe tu documento.
 
 Todo corre en tu equipo; nada se sube a internet. Funciona en un portátil de 8 GB sin tarjeta gráfica.
 
@@ -119,6 +119,34 @@ Por cada archivo, la CLI imprime una línea JSON en la salida estándar (y una l
 - **`avisos`:** lo que conviene revisar aunque el estado sea `ok`, como símbolos que el original no guarda bien, páginas leídas con OCR o encabezados repetidos.
 - **Código de salida:** 0 si todo está `ok`, 1 si hay algún `revisar` y 2 si hay algún `error`.
 
+## Post-procesamiento: `pulir`
+
+Ningún conversor acierta siempre, sobre todo con libros mal maquetados. Después de convertir, `pulir` corrige la estructura y el empaquetado **sin cambiar el texto**. Con la skill es automático: el agente te pregunta si el libro va a Obsidian y hace el resto.
+
+```bash
+todo-a-markdown pulir "Mi libro.md" --obsidian            # para Obsidian
+todo-a-markdown pulir "Mi libro.md"                       # Markdown estándar
+todo-a-markdown pulir "Mi libro.md" --obsidian --adjuntos "C:/Vault/Adjuntos/Mi libro"
+todo-a-markdown pulir "Mi libro.md" --aplicar decisiones.json   # segundo paso, si hubo propuestas
+```
+
+| Qué | Quién decide | Ejemplos |
+|---|---|---|
+| Correcciones mecánicas | El programa | viñetas `•`, `**` y notas `[19]` en títulos, imágenes dentro de un título, `## 1` + `## Título`, títulos vacíos, tablas con columnas de menos, líneas en blanco de sobra |
+| Propuestas | Tu agente (o tú), leyendo solo unas muestras | capítulos escritos como párrafos, subtítulos en negrita o mayúsculas, restos de imprenta (`.indd`, fechas, encabezados de página), niveles de título, índice impreso |
+
+Las propuestas llegan agrupadas, con muestras y números de línea, para que el agente no tenga que leer el libro entero. Se aceptan con `{"aceptar": ["p1", "p3"], "excluir_lineas": [1204]}`.
+
+| | Sí, va a Obsidian (`--obsidian`) | No |
+|---|---|---|
+| Imágenes | `Título - figura.jpg`, para que no choquen con las de otro libro | `figura.jpg` |
+| Enlace | `![[Título - figura.jpg]]` | `![](Mi%20libro_adjuntos/figura.jpg)` |
+| Índice regenerado | `[[#Capítulo 1]]` | `[Capítulo 1](#capítulo-1)` |
+
+**Protecciones:** una guardia compara todas las palabras antes y después y, si algo cambió sin autorización, restaura el `.md`. La copia de seguridad es temporal y se borra al terminar. `pulir` nunca pisa una imagen distinta con el mismo nombre ni copia imágenes de fuera de la carpeta del libro.
+
+Si el destino tiene sus propias reglas (un `AGENTS.md`, por ejemplo), el agente las respeta. El frontmatter específico de tu vault sigue siendo cosa de ese vault.
+
 ## Seguridad
 
 Un documento descargado puede estar hecho a propósito para atacar a quien lo abre:
@@ -129,7 +157,9 @@ Un documento descargado puede estar hecho a propósito para atacar a quien lo ab
 
 ## Limitaciones conocidas
 
-- **Libros de mala calidad:** algunos MOBI y AZW3 traen todo como párrafos, sin capítulos, y con errores de reconocimiento («H8RENBERG»). La CLI no los inventa ni los corrige: si faltan títulos, el informe marca `sin_titulos`.
+- **Libros de mala calidad:** algunos MOBI y AZW3 traen todo como párrafos, sin capítulos, y con errores de reconocimiento («H8RENBERG»). La CLI no corrige esos errores ni inventa títulos: si faltan, el informe marca `sin_titulos` y `pulir` propone los que puede deducir.
+- **EPUB sacados de un PDF:** `pulir` recupera capítulos y quita restos de imprenta, pero un título que el original parte o marca mal puede quedar incompleto, y un rótulo pegado a un párrafo no se detecta. Tampoco elige entre un subtítulo sin negrita ni mayúsculas y un párrafo corto: esos quedan como texto.
+- **Navegación del EPUB:** entradas como «Landmarks» o «Document Outline» pueden quedar como títulos si el libro las incluye en su contenido. Las listas que el libro maqueta como párrafos sueltos siguen siendo párrafos.
 
 - **Símbolos sin Unicode:** algunos PDF guardan `≤`, `≥`, `±` o letras griegas con fuentes sin código de texto. Ningún extractor los recupera; salen como `�` y el informe lo avisa con un ejemplo para que lo revises en el original.
 - **OCR:** RapidOCR lee bien el español, pero puede equivocarse en cifras, dosis, nombres y tablas, y mezclar columnas. Por eso un PDF leído con OCR siempre sale en `revisar`.

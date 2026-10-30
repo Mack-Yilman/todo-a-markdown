@@ -68,6 +68,28 @@ def epub(con_ncx=True):
     return buf.getvalue()
 
 
+def epub_a_medida(cuerpos, toc, titulo="Libro a medida"):
+    """`cuerpos`: {archivo: html del <body>}; `toc`: [(título, destino)]. Para reproducir maquetaciones concretas."""
+    items = "".join(f'<item id="i{i}" href="{n}" media-type="application/xhtml+xml"/>' for i, n in enumerate(cuerpos))
+    spine = "".join(f'<itemref idref="i{i}"/>' for i in range(len(cuerpos)))
+    opf = f"""<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>{titulo}</dc:title></metadata>
+<manifest>{items}<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>
+<spine>{spine}</spine></package>"""
+    puntos = "".join(f'<navPoint><navLabel><text>{t}</text></navLabel><content src="{d}"/></navPoint>' for t, d in toc)
+    ncx = f'<?xml version="1.0"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>{puntos}</navMap></ncx>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("mimetype", "application/epub+zip")
+        z.writestr("META-INF/container.xml", CONTAINER)
+        z.writestr("OEBPS/content.opf", opf)
+        z.writestr("OEBPS/toc.ncx", ncx)
+        for nombre, cuerpo in cuerpos.items():
+            z.writestr(f"OEBPS/{nombre}", f"<html><head><title>x</title></head><body>{cuerpo}</body></html>")
+    return buf.getvalue()
+
+
 PARRAFO = ("La hipertensión arterial es un factor de riesgo cardiovascular modificable. "
            "El tratamiento combina cambios en el estilo de vida y fármacos antihipertensivos. ")
 

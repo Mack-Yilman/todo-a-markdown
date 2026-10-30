@@ -10,7 +10,7 @@ import tempfile
 import time
 from importlib.metadata import version
 
-from . import calidad, epub, office, pdf
+from . import calidad, epub, office, pdf, pulir
 from .comun import frontmatter, hoy, limpiar_saltos, sanitizar
 
 FORMATOS = {
@@ -73,7 +73,8 @@ def convertir_archivo(ruta, args):
                 origen = office.calibre_a_epub(ruta, tmp) if tipo == "calibre" else ruta
                 conv = epub.ConversorEpub(origen, carpeta_adj, carpeta_rel)
                 md = conv.convertir()
-            meta.update({k: v for k, v in conv.meta.items() if v and v not in ("Unknown", "Desconocido")})  # relleno de Calibre
+            # Relleno de Calibre o un hash como título («e2e0cb99…»): mejor el nombre del archivo.
+            meta.update({k: v for k, v in conv.meta.items() if v and v not in ("Unknown", "Desconocido") and not re.fullmatch(r"[0-9a-fA-F]{16,}", v)})
             fuente = {"palabras": conv.palabras_fuente}
             avisos = conv.avisos
             motor = "calibre+epub" if tipo == "calibre" else "epub"
@@ -121,6 +122,9 @@ def convertir_archivo(ruta, args):
 
 def main(argv=None):
     _utf8()
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["pulir"]:
+        return pulir.main(argv[1:])
     p = argparse.ArgumentParser(
         prog="todo-a-markdown",
         description="Convierte EPUB, PDF, DOCX, PPTX, XLSX, HTML, CSV, MOBI, AZW3 y FB2 a Markdown para Obsidian y LLM. "
