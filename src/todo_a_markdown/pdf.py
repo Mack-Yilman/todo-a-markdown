@@ -36,7 +36,13 @@ def unir_acentos(md):
         if base[0] not in letras or len(base) > 1:
             return m.group(0)
         return unicodedata.normalize("NFC", ("i" if letra == "ı" else letra) + combinable)
-    return ACENTO_SUELTO.sub(unir, md)
+    # Docling a veces repite el acento («Sau´ ´ de»): la 1.ª pasada deja «Saú ´ de» y la 2.ª quita el sobrante.
+    for _ in range(3):
+        nuevo = ACENTO_SUELTO.sub(unir, md)
+        if nuevo == md:
+            break
+        md = nuevo
+    return md
 
 
 def analizar(ruta):
@@ -44,11 +50,11 @@ def analizar(ruta):
     with pymupdf.open(ruta) as doc:
         if doc.needs_pass:
             raise ValueError("el PDF está protegido con contraseña")
-        sin_texto, palabras, derecha, cuerpo, con_columnas, guiones = [], 0, 0, 0, [], set()
+        sin_texto, palabras, derecha, cuerpo, con_columnas, todo = [], 0, 0, 0, [], []
         for n, pagina in enumerate(doc, 1):
             texto = pagina.get_text()
+            todo.append(texto)
             palabras += contar_palabras(texto)
-            guiones.update(re.findall(r"(?<!\d)(\d+)-[ \t]*\n\s*(\d+)(?!\d)", texto))  # «158-⏎173»
             if len(texto.strip()) < 20:
                 sin_texto.append(n)
             ancho = pagina.rect.width
@@ -72,7 +78,7 @@ def analizar(ruta):
             "lista_sin_texto": sin_texto,
             "palabras": palabras,
             "paginas_columnas": con_columnas,
-            "guiones_numericos": sorted(guiones),
+            "guiones": guiones_de_fin_de_linea("\n".join(todo)),
             "title": (meta.get("title") or "").strip(),
             "author": (meta.get("author") or "").strip(),
         }
@@ -95,11 +101,27 @@ def metadatos_confiables(fuente, md):
     return datos
 
 
+def guiones_de_fin_de_linea(texto):
+    """Los motores quitan todo guion de fin de línea como si cortara una sílaba. Devuelve [(unido, correcto)] para
+    los que no lo eran, con el original como única evidencia:
+    - entre números: «158-⏎173» (páginas de una referencia) no es «158173»;
+    - guion suspendido: «image-⏎and transform» es «image- and»;
+    - compuesto: «bias-⏎correction» solo si el original escribe «bias-correction» dentro de una línea.
+    Un corte de sílaba («trata-⏎miento») no cumple ninguna y queda unido."""
+    pares = set()
+    for a, b in re.findall(r"(?<![\w-])(\d+)-[ \t]*\n\s*(\d+)(?!\d)", texto):
+        pares.add((a + b, f"{a}-{b}"))
+    for a, b in re.findall(r"(?<![\w-])([^\W\d_]{2,})-[ \t]*\n\s*([^\W\d_]{2,})(?![\w-])", texto):
+        if b in ("and", "or", "y", "o", "e", "u"):
+            pares.add((a + b, f"{a}- {b}"))
+        elif f"{a}-{b}" in texto:
+            pares.add((a + b, f"{a}-{b}"))
+    return sorted(pares)
+
+
 def restaurar_guiones(md, pares):
-    """Los motores quitan el guion de fin de línea como si cortara una palabra, también entre números:
-    «158-⏎173» (las páginas de una referencia) sale «158173». El original dice qué pares llevaban guion."""
-    for a, b in pares:
-        md = re.sub(rf"(?<!\d){a}{b}(?!\d)", f"{a}-{b}", md)
+    for unido, correcto in pares:
+        md = re.sub(rf"(?<![\w-]){re.escape(unido)}(?![\w-])", correcto, md)
     return md
 
 

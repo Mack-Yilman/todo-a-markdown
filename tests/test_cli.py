@@ -153,9 +153,13 @@ class Pdf(unittest.TestCase):
                          {"title": "Características de los artículos", "author": "Pamo Reyna Oscar; Turín"})
 
     def test_restaura_guiones_entre_numeros(self):
-        from todo_a_markdown.pdf import restaurar_guiones
-        md = "Anales 1996; 57 (3): 158173. Año 2015158173."
-        self.assertEqual(restaurar_guiones(md, [("158", "173")]), "Anales 1996; 57 (3): 158-173. Año 2015158173.")
+        from todo_a_markdown.pdf import guiones_de_fin_de_linea, restaurar_guiones
+        original = ("Anales 1996; 57 (3): 158-\n173. Un método de bias-\ncorrection y la bias-correction usual; "
+                    "para image-\nand transform storage; un trata-\nmiento largo.")
+        pares = guiones_de_fin_de_linea(original)
+        md = "Anales 1996; 57 (3): 158173. Año 2015158173. Un biascorrection; imageand transform; tratamiento."
+        self.assertEqual(restaurar_guiones(md, pares),
+                         "Anales 1996; 57 (3): 158-173. Año 2015158173. Un bias-correction; image- and transform; tratamiento.")
 
     def test_sobrescribir_no_deja_imagenes_huerfanas(self):
         d = carpeta()
@@ -189,14 +193,15 @@ class Pdf(unittest.TestCase):
         md = _limpiar("Texto\n\n<!-- formula-not-decoded -->\n\nmás texto")
         self.assertIn("[fórmula no convertida", md)
         r = calidad.evaluar("# T\n\n" + md, os.path.join(carpeta(), "n.md"), "pdf", {})
-        self.assertTrue(any(a.startswith("formulas_omitidas: 1") for a in r["avisos"]), r)
+        self.assertTrue(any(m.startswith("formulas_omitidas: 1") for m in r["motivos"]), r)
 
     @unittest.skipUnless(importlib.util.find_spec("docling"), "Docling no instalado (extra opcional)")
     def test_docling_en_dos_columnas(self):
         d = carpeta()
         _, [r] = correr(escribir(d, "paper.pdf", fixtures.pdf(dos_columnas=True)), "--motor", "docling")
         self.assertEqual(r["motor"], "docling")
-        self.assertEqual(r["estado"], "ok", r)
+        # Docling ordena las columnas, pero el informe pide revisar esas páginas (no promete un orden perfecto).
+        self.assertEqual([m.split(":")[0] for m in r["motivos"]], ["columnas"], r)
         self.assertIn("hipertensión arterial", leer(r["salida"]))
 
     def test_escaneado_pide_ocr(self):
@@ -318,6 +323,7 @@ class Acentos(unittest.TestCase):
         # variantes de Docling: acento separado por espacios, a veces ya aplicado a la letra
         self.assertEqual(unir_acentos("Famí ´ lia, Integraç ¸ ão, Luı ´ s, Cadastro U ´ nico, Saú ´ de"),
                          "Família, Integração, Luís, Cadastro Único, Saúde")
+        self.assertEqual(unir_acentos("para Sau´ ´ de (CIDACS)"), "para Saúde (CIDACS)")  # acento repetido
 
     def test_no_toca_apostrofos_ni_texto_normal(self):
         from todo_a_markdown.pdf import unir_acentos

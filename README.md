@@ -97,7 +97,7 @@ Por cada archivo, la CLI imprime una línea JSON en la salida estándar (y una l
  "metricas": {"palabras": 8111, "palabras_fuente": 9307, "ratio": 0.871, "titulos": {"h1": 1, "h2": 15, "h3": 6}, "imagenes": 2, "paginas": 17, "segundos": 12.3}}
 ```
 
-- **`estado`:** `ok`, `revisar` (hay `motivos`: texto perdido, mojibake, imágenes rotas, PDF escaneado sin OCR, documento largo sin títulos) o `error`.
+- **`estado`:** `ok`, `revisar` (hay `motivos`: texto perdido, mojibake, imágenes rotas, PDF escaneado sin OCR o leído con OCR, columnas que revisar, ecuaciones no convertidas, documento largo sin títulos) o `error`.
 - **`avisos`:** lo que conviene revisar aunque el estado sea `ok`, como símbolos que el original no guarda bien, páginas leídas con OCR o encabezados repetidos.
 - **Código de salida:** 0 si todo está `ok`, 1 si hay algún `revisar` y 2 si hay algún `error`.
 

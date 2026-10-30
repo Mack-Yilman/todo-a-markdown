@@ -80,7 +80,7 @@ def convertir_archivo(ruta, args):
             fuente = {**pdf.analizar(ruta), "ocr": args.ocr, "motor": args.motor}
             motor = args.motor
             md = pdf.convertir(ruta, carpeta_adj, carpeta_rel, ocr=args.ocr, motor=motor)
-            md = pdf.restaurar_guiones(md, fuente["guiones_numericos"])
+            md = pdf.restaurar_guiones(md, fuente["guiones"])
             meta.update(pdf.metadatos_confiables(fuente, md))
             if len(re.findall(r"(?m)^# ", md)) > 1:  # secciones marcadas como H1: bajan un nivel; el H1 es el título
                 md = re.sub(r"(?m)^(#{1,5}) ", r"#\1 ", md)

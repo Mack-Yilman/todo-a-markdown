@@ -61,7 +61,7 @@ def evaluar(md, ruta_md, formato, fuente):
 
     formulas = cuerpo.count("*[fórmula no convertida")
     if formulas:
-        avisos.append(f"formulas_omitidas: {formulas} ecuaciones no se pudieron convertir; quedaron marcadas como «[fórmula no convertida]»")
+        motivos.append(f"formulas_omitidas: {formulas} ecuaciones no se pudieron convertir; quedaron marcadas como «[fórmula no convertida]»")
 
     m["wikilinks_falsos"] = len(WIKILINK_FALSO.findall(cuerpo))
     if m["wikilinks_falsos"]:
@@ -87,7 +87,7 @@ def evaluar(md, ruta_md, formato, fuente):
         columnas = fuente.get("paginas_columnas")
         donde = "varias páginas" if columnas == ["varias"] else "las páginas " + ", ".join(map(str, (columnas or [])[:10]))
         if columnas and fuente.get("motor") == "docling":
-            avisos.append(f"columnas: Docling ordena mejor las columnas, pero a veces intercala barras laterales y recuadros; revisa el orden de lectura en {donde}")
+            motivos.append(f"columnas: Docling ordena mejor las columnas, pero a veces intercala barras laterales y recuadros; revisa el orden de lectura en {donde}")
         elif columnas:
             motivos.append(f"dos_columnas: hay columnas o una barra lateral en {donde}, y el motor pymupdf a veces "
                            "las intercala; reconvierte con --motor docling o revisa el orden de lectura ahí")
