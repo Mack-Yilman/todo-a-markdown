@@ -37,17 +37,17 @@ Instala la CLI con [uv](https://docs.astral.sh/uv/) y te pregunta dónde copiar 
 ### Solo la CLI
 
 ```bash
-uv tool install git+https://github.com/Mack-Yilman/todo-a-markdown
+uv tool install --python 3.13 git+https://github.com/Mack-Yilman/todo-a-markdown
 # con OCR para PDF escaneados:
-uv tool install "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
+uv tool install --python 3.13 "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
 # con Docling para papers a dos columnas (ocupa ~1,6 GB):
-uv tool install "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
+uv tool install --python 3.13 "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"
 # los dos extras: [ocr,docling]
 # sin uv:
 python -m pip install --user git+https://github.com/Mack-Yilman/todo-a-markdown
 ```
 
-Necesita Python 3.11 o superior (uv lo descarga si no lo tienes).
+Con uv no necesitas instalar Python: descarga la versión 3.13 si hace falta. Con pip, usa Python 3.11 a 3.14: `onnxruntime`, que usa el motor de PDF, aún no publica paquetes para 3.15.
 
 ### Solo la skill
 
@@ -57,7 +57,7 @@ Es para **Claude Code o cualquier otro LLM con terminal**, porque ejecuta la CLI
 - **Claude Code:** descomprime [todo-a-markdown.zip](https://github.com/Mack-Yilman/todo-a-markdown/releases/latest/download/todo-a-markdown.zip) en `~/.claude/skills/`.
 - **Antigravity (IDE y CLI):** descomprímelo en `~/.gemini/config/skills/`.
 - **Claude.ai, Desktop y Cowork:** Configuración › Capacidades › Skills › sube el `.zip`. Solo funciona donde el agente tiene terminal.
-- **Pidiéndoselo a tu agente:** «Instala la skill de https://github.com/Mack-Yilman/todo-a-markdown: copia la carpeta `skills/todo-a-markdown` en tu carpeta de skills e instala la CLI con `uv tool install git+https://github.com/Mack-Yilman/todo-a-markdown`».
+- **Pidiéndoselo a tu agente:** «Instala la skill de https://github.com/Mack-Yilman/todo-a-markdown: copia la carpeta `skills/todo-a-markdown` en tu carpeta de skills e instala la CLI con `uv tool install --python 3.13 git+https://github.com/Mack-Yilman/todo-a-markdown`».
 
 ## Uso
 

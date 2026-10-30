@@ -176,7 +176,7 @@ def _limpiar(md):
 
 
 def instalar_extra(extra):
-    return f'uv tool install --force "todo-a-markdown[{extra}] @ git+https://github.com/Mack-Yilman/todo-a-markdown"'
+    return f'uv tool install --python 3.13 --force "todo-a-markdown[{extra}] @ git+https://github.com/Mack-Yilman/todo-a-markdown"'
 
 
 def convertir_pymupdf(ruta, carpeta_adj, carpeta_rel, ocr):

@@ -72,6 +72,19 @@ class Version(unittest.TestCase):
         self.assertEqual(primera.group(1), version)
 
 
+class PythonCompatible(unittest.TestCase):
+    def test_comandos_de_instalacion_fijan_python(self):
+        # Sin --python, uv elige la versión más reciente, y onnxruntime no publica paquetes para 3.15.
+        for partes in (("README.md",), ("install.ps1",), ("skills", "todo-a-markdown", "SKILL.md"),
+                       ("src", "todo_a_markdown", "pdf.py")):
+            texto = leer(*partes)
+            self.assertIn("uv tool install", texto, partes)
+            self.assertNotRegex(texto, r"uv tool install (?!--python 3\.13 )", partes)
+
+    def test_requires_python_con_tope(self):
+        self.assertIn("<3.15", tomllib.loads(leer("pyproject.toml"))["project"]["requires-python"])
+
+
 class Instalador(unittest.TestCase):
     def test_ascii_sin_bom(self):
         with open(os.path.join(RAIZ, "install.ps1"), "rb") as f:

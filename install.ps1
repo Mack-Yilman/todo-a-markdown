@@ -75,10 +75,10 @@ param([string]$Destino, [switch]$Ocr, [switch]$Docling)
         if ($Docling) { $extras += 'docling' }
         $paquete = if ($extras) { "$nombre[$($extras -join ',')] @ git+https://github.com/$repo" } else { "git+https://github.com/$repo" }
         if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-            Write-Warning ((T 'No encontr\u00e9 uv. Inst\u00e1lalo (winget install astral-sh.uv) y ejecuta: uv tool install --force "') + $paquete + '"')
+            Write-Warning ((T 'No encontr\u00e9 uv. Inst\u00e1lalo (winget install astral-sh.uv) y ejecuta: uv tool install --python 3.13 --force "') + $paquete + '"')
             return
         }
-        & uv tool install --force $paquete
+        & uv tool install --python 3.13 --force $paquete
         if ($LASTEXITCODE -ne 0) { throw (T 'uv no pudo instalar la CLI.') }
         Write-Hecho 'CLI' 'todo-a-markdown'
     }
