@@ -152,6 +152,19 @@ class Pdf(unittest.TestCase):
         self.assertEqual(metadatos_confiables({"title": "Características de los artículos", "author": "Pamo Reyna Oscar; Turín"}, md),
                          {"title": "Características de los artículos", "author": "Pamo Reyna Oscar; Turín"})
 
+    def test_restaura_guiones_entre_numeros(self):
+        from todo_a_markdown.pdf import restaurar_guiones
+        md = "Anales 1996; 57 (3): 158173. Año 2015158173."
+        self.assertEqual(restaurar_guiones(md, [("158", "173")]), "Anales 1996; 57 (3): 158-173. Año 2015158173.")
+
+    def test_sobrescribir_no_deja_imagenes_huerfanas(self):
+        d = carpeta()
+        ruta = escribir(d, "guia.pdf", fixtures.pdf())
+        correr(ruta)
+        escribir(os.path.join(d, "guia_adjuntos"), "vieja.png", fixtures.png())
+        correr(ruta, "--sobrescribir")
+        self.assertNotIn("vieja.png", os.listdir(os.path.join(d, "guia_adjuntos")))
+
     def test_quita_texto_vertical(self):
         from todo_a_markdown.pdf import _limpiar
         sello = "\n\n".join("OpMahvoR")
@@ -302,6 +315,9 @@ class Acentos(unittest.TestCase):
         from todo_a_markdown.pdf import unir_acentos
         self.assertEqual(unir_acentos("Bolsa Famı´lia, Gonc¸alo, O¨ zler y CadU<sup>´</sup> nico"),
                          "Bolsa Família, Gonçalo, Özler y CadÚnico")
+        # variantes de Docling: acento separado por espacios, a veces ya aplicado a la letra
+        self.assertEqual(unir_acentos("Famí ´ lia, Integraç ¸ ão, Luı ´ s, Cadastro U ´ nico, Saú ´ de"),
+                         "Família, Integração, Luís, Cadastro Único, Saúde")
 
     def test_no_toca_apostrofos_ni_texto_normal(self):
         from todo_a_markdown.pdf import unir_acentos

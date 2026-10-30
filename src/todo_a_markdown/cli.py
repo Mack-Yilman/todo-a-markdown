@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 import time
@@ -59,6 +60,8 @@ def convertir_archivo(ruta, args):
 
     carpeta_rel = nombre + "_adjuntos"
     carpeta_adj = None if args.sin_imagenes else os.path.join(destino, carpeta_rel)
+    if args.sobrescribir and os.path.isdir(os.path.join(destino, carpeta_rel)):
+        shutil.rmtree(os.path.join(destino, carpeta_rel))  # imágenes de la conversión anterior: no dejar huérfanas
     os.makedirs(destino, exist_ok=True)
     meta = {"title": "", "author": ""}
     fuente, avisos, motor = {}, [], None
@@ -77,6 +80,7 @@ def convertir_archivo(ruta, args):
             fuente = {**pdf.analizar(ruta), "ocr": args.ocr, "motor": args.motor}
             motor = args.motor
             md = pdf.convertir(ruta, carpeta_adj, carpeta_rel, ocr=args.ocr, motor=motor)
+            md = pdf.restaurar_guiones(md, fuente["guiones_numericos"])
             meta.update(pdf.metadatos_confiables(fuente, md))
             if len(re.findall(r"(?m)^# ", md)) > 1:  # secciones marcadas como H1: bajan un nivel; el H1 es el título
                 md = re.sub(r"(?m)^(#{1,5}) ", r"#\1 ", md)

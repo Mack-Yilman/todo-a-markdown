@@ -22,14 +22,18 @@ ACENTOS = {
     "ˇ": ("̌", "cCsSzZrReEnN"), "˚": ("̊", "aAuU"),
 }
 # El lookahead negativo deja quietos los ´ usados como apóstrofo («who´s», «I´m», «we´ve»).
-ACENTO_SUELTO = re.compile(r"(\w)(?:<sup>)?([´`¨ˆ˜¸ˇ˚])(?:</sup>)?(?!(?:s|t|m|d|re|ll|ve)\b)(?: (?=[a-zà-ÿ]))?")
+# Docling además los separa con espacios y a veces ya puso la tilde: «Famí ´ lia», «U ´ nico», «Gonç ¸ alo».
+ACENTO_SUELTO = re.compile(r"(\w)(?:<sup>)? ?([´`¨ˆ˜¸ˇ˚])(?:</sup>)?(?!(?:s|t|m|d|re|ll|ve)\b)(?: (?=[a-zà-ÿ]))?")
 
 
 def unir_acentos(md):
     def unir(m):
         letra, acento = m.group(1), m.group(2)
         combinable, letras = ACENTOS[acento]
-        if letra not in letras:
+        base = unicodedata.normalize("NFD", letra)
+        if combinable in base[1:]:  # la letra ya trae ese acento: sobra el suelto
+            return letra
+        if base[0] not in letras or len(base) > 1:
             return m.group(0)
         return unicodedata.normalize("NFC", ("i" if letra == "ı" else letra) + combinable)
     return ACENTO_SUELTO.sub(unir, md)
@@ -40,10 +44,11 @@ def analizar(ruta):
     with pymupdf.open(ruta) as doc:
         if doc.needs_pass:
             raise ValueError("el PDF está protegido con contraseña")
-        sin_texto, palabras, derecha, cuerpo, con_columnas = [], 0, 0, 0, []
+        sin_texto, palabras, derecha, cuerpo, con_columnas, guiones = [], 0, 0, 0, [], set()
         for n, pagina in enumerate(doc, 1):
             texto = pagina.get_text()
             palabras += contar_palabras(texto)
+            guiones.update(re.findall(r"(?<!\d)(\d+)-[ \t]*\n\s*(\d+)(?!\d)", texto))  # «158-⏎173»
             if len(texto.strip()) < 20:
                 sin_texto.append(n)
             ancho = pagina.rect.width
@@ -67,6 +72,7 @@ def analizar(ruta):
             "lista_sin_texto": sin_texto,
             "palabras": palabras,
             "paginas_columnas": con_columnas,
+            "guiones_numericos": sorted(guiones),
             "title": (meta.get("title") or "").strip(),
             "author": (meta.get("author") or "").strip(),
         }
@@ -87,6 +93,14 @@ def metadatos_confiables(fuente, md):
     if primer_autor.strip() and _clave(primer_autor) in inicio:
         datos["author"] = fuente["author"]
     return datos
+
+
+def restaurar_guiones(md, pares):
+    """Los motores quitan el guion de fin de línea como si cortara una palabra, también entre números:
+    «158-⏎173» (las páginas de una referencia) sale «158173». El original dice qué pares llevaban guion."""
+    for a, b in pares:
+        md = re.sub(rf"(?<!\d){a}{b}(?!\d)", f"{a}-{b}", md)
+    return md
 
 
 def _relativizar(md, carpeta_adj, carpeta_rel):
