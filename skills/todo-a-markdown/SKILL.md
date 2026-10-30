@@ -22,9 +22,9 @@ Tu trabajo es que el usuario reciba un `.md` **fiel al original** y sepa qué ta
 
 1. Comprueba que la CLI está instalada: `todo-a-markdown --version`.
 2. Si no lo está, **pide permiso al usuario** y luego instálala:
-   - con uv: `uv tool install git+https://github.com/Mack-Yilman/todo-a-markdown`
-   - con OCR para PDF escaneados: `uv tool install "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`
-   - con Docling para papers a dos columnas (ocupa unos 1,6 GB; dilo al pedir permiso): `uv tool install --force "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`. Para tener ambos extras, escribe `[ocr,docling]`.
+   - con uv: `uv tool install --python 3.13 git+https://github.com/Mack-Yilman/todo-a-markdown`
+   - con OCR para PDF escaneados: `uv tool install --python 3.13 "todo-a-markdown[ocr] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`
+   - con Docling para papers a dos columnas (ocupa unos 1,6 GB; dilo al pedir permiso): `uv tool install --python 3.13 --force "todo-a-markdown[docling] @ git+https://github.com/Mack-Yilman/todo-a-markdown"`. Para tener ambos extras, escribe `[ocr,docling]`.
    - sin uv: `python -m pip install --user git+https://github.com/Mack-Yilman/todo-a-markdown`
 3. Decide el destino: si el usuario nombró una carpeta (por ejemplo, la de su vault), usa `-o "<carpeta>"`. Si no, la CLI guarda junto al original.
 

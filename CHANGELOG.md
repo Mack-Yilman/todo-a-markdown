@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-10-30
+
+- Instalación corregida en equipos sin Python: uv descargaba Python 3.15, para el que `onnxruntime` aún no publica paquetes. Ahora los comandos fijan `--python 3.13` y el paquete declara `requires-python <3.15`.
+
 ## 0.1.0 — 2026-10-30
 
 - Primera versión: CLI `todo-a-markdown` y skill.
