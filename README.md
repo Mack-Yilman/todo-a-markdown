@@ -104,7 +104,10 @@ Por cada archivo, la CLI imprime una línea JSON en la salida estándar (y una l
 ## Limitaciones conocidas
 
 - **Símbolos sin Unicode:** algunos PDF guardan `≤`, `≥`, `±` o letras griegas con fuentes sin código de texto. Ningún extractor los recupera; salen como `�` y el informe lo avisa con un ejemplo para que lo revises en el original.
-- **OCR:** RapidOCR lee bien el español, pero puede equivocarse en cifras, dosis, nombres y tablas. Revísalos contra el original.
+- **OCR:** RapidOCR lee bien el español, pero puede equivocarse en cifras, dosis, nombres y tablas, y mezclar columnas. Por eso un PDF leído con OCR siempre sale en `revisar`.
+- **Ecuaciones:** Docling no convierte las ecuaciones a texto; cada una queda marcada como «[fórmula no convertida]» y el informe las cuenta. La notación matemática dentro de las frases puede salir desordenada.
+- **Autor de un PDF:** se toma de los metadatos del archivo, que a veces dicen quién armó el PDF y no quién escribió el artículo.
+- **Encabezados y pies de página:** casi siempre se quitan, pero alguno puede quedar en medio de un párrafo.
 - **Dos columnas:** el motor por defecto (pymupdf4llm) es rápido, pero a veces intercala las columnas de un paper. El informe lo detecta (`dos_columnas`) y la skill reconvierte con Docling, que las ordena bien pero tarda unos 10 s por página (un paper de 17 páginas: ~2 min en un portátil de 8 GB, con 1,5 GB de RAM).
 - No convierte páginas web por URL. Para eso usa [Defuddle](https://github.com/kepano/defuddle).
 

@@ -144,6 +144,32 @@ class Pdf(unittest.TestCase):
         self.assertEqual(_limpiar("visita https://x.org/ and more"), "visita https://x.org/ and more")
         self.assertEqual(_limpiar("|**BFP **|"), "|**BFP** |")
 
+    def test_quita_texto_vertical(self):
+        from todo_a_markdown.pdf import _limpiar
+        sello = "\n\n".join("OpMahvoR")
+        self.assertEqual(_limpiar(f"# Título\n\n{sello}\n\nTexto del paper."), "# Título\n\nTexto del paper.")
+        lista = "- a\n- b\n- c"
+        self.assertEqual(_limpiar(lista), lista)  # pocas líneas cortas: se quedan
+
+    def test_barra_lateral_en_una_pagina(self):
+        import pymupdf
+        doc = pymupdf.open()
+        for _ in range(2):
+            pag = doc.new_page()
+            for y in (60, 260, 460):  # barra lateral angosta a la izquierda y texto principal a la derecha
+                pag.insert_textbox(pymupdf.Rect(40, y, 170, y + 190), fixtures.PARRAFO * 2, fontsize=8)
+                pag.insert_textbox(pymupdf.Rect(200, y, 560, y + 190), fixtures.PARRAFO * 3, fontsize=10)
+        _, [r] = correr(escribir(carpeta(), "lateral.pdf", doc.tobytes()), "--sin-imagenes")
+        self.assertTrue(any(m.startswith("dos_columnas: hay columnas o una barra lateral en las páginas 1, 2")
+                            for m in r["motivos"]), r["motivos"])
+
+    def test_formulas_de_docling_quedan_marcadas_y_avisadas(self):
+        from todo_a_markdown.pdf import _limpiar
+        md = _limpiar("Texto\n\n<!-- formula-not-decoded -->\n\nmás texto")
+        self.assertIn("[fórmula no convertida", md)
+        r = calidad.evaluar("# T\n\n" + md, os.path.join(carpeta(), "n.md"), "pdf", {})
+        self.assertTrue(any(a.startswith("formulas_omitidas: 1") for a in r["avisos"]), r)
+
     @unittest.skipUnless(importlib.util.find_spec("docling"), "Docling no instalado (extra opcional)")
     def test_docling_en_dos_columnas(self):
         d = carpeta()
@@ -180,6 +206,7 @@ class Office(unittest.TestCase):
         self.assertIn("## Objetivos", md)
         self.assertIn("Lactato", md)
         self.assertNotIn("base64", md)
+        self.assertIn("| Variable | Valor |\n| --- | --- |\n| Lactato |", md)  # sin fila de encabezado vacía
         self.assertEqual(r["metricas"]["imagenes"], 1)
         self.assertEqual(r["metricas"]["imagenes_rotas"], 0)
 
@@ -194,6 +221,7 @@ class Office(unittest.TestCase):
         self.assertNotIn("<!--", textos["clase.pptx"])
         self.assertEqual(len(re.findall(r"(?m)^# ", textos["clase.pptx"])), 1)
         self.assertIn("## Clase de farmacología", textos["clase.pptx"])
+        self.assertIn('title: "datos"', textos["datos.xlsx"])  # no «Sheet», el nombre de la hoja
         self.assertIn("Caso A", textos["datos.xlsx"])
 
 

@@ -15,6 +15,8 @@ def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
 
     res = MarkItDown().convert(ruta, keep_data_uris=True)
     md = re.sub(r"[ \t]*<!--.*?-->[ \t]*\n?", "", res.markdown, flags=re.S)  # «<!-- Slide number: 1 -->»
+    # Una tabla de Word sin fila de encabezado sale con un encabezado vacío: la primera fila real pasa a serlo.
+    md = re.sub(r"(?m)^\|(?:[ \t]*\|)+\n(\|(?:[ \t]*:?-+:?[ \t]*\|)+)\n(\|.*\|)$", r"\2\n\1", md)
     if ruta.lower().endswith(".pptx"):
         md = re.sub(r"(?m)^# ", "## ", md)  # cada diapositiva es una sección; el único H1 es el título del archivo
     md = extraer_data_uris(md, carpeta_adj, carpeta_rel, prefijo) if carpeta_adj else quitar_data_uris(md)

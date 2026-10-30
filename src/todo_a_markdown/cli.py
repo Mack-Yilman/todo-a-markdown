@@ -86,10 +86,19 @@ def convertir_archivo(ruta, args):
         return {**informe, "estado": "error", "error": f"{type(e).__name__}: {e}"}
 
     md = sanitizar(md)
-    primer_titulo = re.search(r"(?m)^#{1,3} (.+)$", md)
-    meta["title"] = meta["title"] or (primer_titulo and re.sub(r"[*_]", "", primer_titulo.group(1)).strip()) or nombre
+    # Líneas candidatas a título: la primera con contenido y los primeros encabezados.
+    candidatas = [m for m in re.finditer(r"(?m)^(?:#{1,6} )?(?![!|])(\S.{0,200})$", md)][:1]
+    candidatas += list(re.finditer(r"(?m)^#{1,6} (.{1,200})$", md))[:5]
+    limpio = lambda m: re.sub(r"[*_]", "", m.group(1)).strip()  # noqa: E731
+    if tipo == "pdf" and not meta["title"] and candidatas:  # sin metadatos: la primera línea, no el nombre del archivo
+        meta["title"] = limpio(candidatas[0])
+    meta["title"] = meta["title"] or nombre
     if not re.search(r"(?m)^# ", md):  # un solo H1 al inicio, salvo que el motor ya haya puesto uno
-        md = f"# {meta['title']}\n\n{md}"
+        igual = next((m for m in candidatas if limpio(m).lower() == meta["title"].lower()), None)
+        if igual:  # el título ya está en el texto: subirlo a H1 en vez de duplicarlo
+            md = md[:igual.start()] + "# " + limpio(igual) + md[igual.end():]
+        else:
+            md = f"# {meta['title']}\n\n{md}"
     md = frontmatter({**meta, "source": os.path.basename(ruta), "format": ext.lstrip("."), "converted": hoy()}) + limpiar_saltos(md)
 
     with open(ruta_md, "w", encoding="utf-8", newline="\n") as f:

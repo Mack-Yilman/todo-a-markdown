@@ -73,6 +73,7 @@ Cada motivo empieza con una clave (`escaneado:`, `texto_perdido:`…). Reintenta
 | `sin_titulos` | El original no marca sus títulos (frecuente en PDF). Informa que la navegación en Obsidian será pobre. No inventes títulos. |
 | aviso `simbolos_ilegibles` | Dile al usuario que el original guarda símbolos como ≤, ≥ o ± sin código legible, que salen como �, y cita el ejemplo del aviso. Que revise esas cifras contra el PDF. |
 | `ocr` | No reintentes: es el resultado del OCR. En el paso 5 revisa el doble de tramos y anota cada línea con basura, texto cortado o columnas mezcladas. Dile al usuario que verifique cifras, dosis y nombres contra el original. |
+| aviso `formulas_omitidas` | Dile cuántas ecuaciones quedaron marcadas como «[fórmula no convertida]» y que las consulte en el original. |
 | aviso `lineas_repetidas` | Menciona la línea repetida (suele ser el encabezado o el pie de página de la revista). |
 | aviso `saltos_de_nivel`, `paginas_sin_texto` o `texto_duplicado` | Menciónalo en una línea. |
 | `error`: «ya existe un .md» | Pregunta si se reemplaza o si se guarda en otra carpeta. |

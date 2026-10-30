@@ -40,23 +40,32 @@ def analizar(ruta):
     with pymupdf.open(ruta) as doc:
         if doc.needs_pass:
             raise ValueError("el PDF está protegido con contraseña")
-        sin_texto, palabras, derecha, cuerpo = 0, 0, 0, 0
-        for pagina in doc:
+        sin_texto, palabras, derecha, cuerpo, con_columnas = 0, 0, 0, 0, []
+        for n, pagina in enumerate(doc, 1):
             texto = pagina.get_text()
             palabras += contar_palabras(texto)
             if len(texto.strip()) < 20:
                 sin_texto += 1
-            for b in pagina.get_text("blocks"):
-                if b[6] == 0 and len(b[4].strip()) > 150:  # bloques de texto corrido, no títulos ni pies
-                    cuerpo += 1
-                    derecha += b[0] > pagina.rect.width * 0.45
+            ancho = pagina.rect.width
+            # x de los bloques de texto corrido (no títulos ni pies)
+            xs = [b[0] for b in pagina.get_text("blocks") if b[6] == 0 and len(b[4].strip()) > 150]
+            cuerpo += len(xs)
+            derecha += sum(x > ancho * 0.45 for x in xs)
+            if len(xs) >= 4:  # columnas o barra lateral en esta página: bloques que arrancan en dos x separadas
+                izq, der = min(xs), max(xs)
+                if (der - izq >= 0.25 * ancho and sum(x < izq + 0.05 * ancho for x in xs) >= 2
+                        and sum(x > der - 0.05 * ancho for x in xs) >= 2):
+                    con_columnas.append(n)
         meta = doc.metadata or {}
+        # Calibrado con el corpus: en un paper a dos columnas ~40 % de los bloques empiezan pasada la mitad (una
+        # columna: 0 %); la barra lateral de PLOS solo se ve página por página (págs. 1–2).
+        if cuerpo and derecha / cuerpo >= 0.2 and not con_columnas:
+            con_columnas = ["varias"]
         return {
             "paginas": doc.page_count,
             "paginas_sin_texto": sin_texto,
             "palabras": palabras,
-            # Calibrado: papers a dos columnas ~0,4 de bloques que empiezan pasada la mitad; una columna, 0.
-            "dos_columnas": cuerpo > 0 and derecha / cuerpo >= 0.2,
+            "paginas_columnas": con_columnas,
             "title": (meta.get("title") or "").strip(),
             "author": (meta.get("author") or "").strip(),
         }
@@ -85,7 +94,28 @@ URL_PARTIDA = re.compile(r"(https?://\S*[/.\-]) (?=[\w%]\S*?[/.]\w)")
 NEGRITA_CON_ESPACIO = re.compile(r"\*\*(\S[^*\n]*?)\s+\*\*")
 
 
+FORMULA_OMITIDA = "*[fórmula no convertida: consúltala en el original]*"
+
+
+def _quitar_texto_vertical(md):
+    """Texto girado 90° (el sello lateral de arXiv, márgenes de revistas) sale como una letra por línea:
+    6 o más líneas seguidas de hasta 3 caracteres se descartan."""
+    lineas, salida, racha = md.split("\n"), [], []
+    for ln in lineas + [None]:
+        if ln is not None and (not ln.strip() or len(ln.strip()) <= 3) and (racha or ln.strip()):
+            racha.append(ln)
+            continue
+        if sum(1 for r in racha if r.strip()) < 6:
+            salida += racha
+        racha = []
+        if ln is not None:
+            salida.append(ln)
+    return "\n".join(salida)
+
+
 def _limpiar(md):
+    md = _quitar_texto_vertical(md)
+    md = md.replace("<!-- formula-not-decoded -->", FORMULA_OMITIDA)  # Docling: que no desaparezca en silencio
     md = COMENTARIO.sub("", md)  # marcas «Start/End of picture text» del modo layout
     md = NEGRITA_CON_ESPACIO.sub(r"**\1** ", md)
     return unir_acentos(URL_PARTIDA.sub(r"\1", md))
