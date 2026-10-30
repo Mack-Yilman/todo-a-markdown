@@ -7,10 +7,9 @@ import urllib.parse
 
 import pymupdf
 
-from .comun import contar_palabras, enlace_imagen
+from .comun import contar_palabras, enlace_imagen, quitar_comentarios
 
-IMAGEN_MD = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
-COMENTARIO = re.compile(r"[ \t]*<!--.*?-->[ \t]*\n?", re.S)
+IMAGEN_MD = re.compile(r"!\[([^\[\]]*)\]\(([^)\[\n]+)\)")  # sin `[` para que `![![![…` no sea cuadrático
 MIN_LADO_PX = 40  # a 150 ppp, ~7 mm: menos que eso es decoración, no una figura
 
 # Los PDF hechos con LaTeX guardan los acentos como caracteres sueltos: «Famı´lia», «Gonc¸alo», «CadU<sup>´</sup> nico».
@@ -144,8 +143,10 @@ def _relativizar(md, carpeta_adj, carpeta_rel):
 
 # Un enlace partido por el salto de línea del PDF: «https://hdl.handle.net/20. 500.12196/…», «https://doi.org/ 10.1371/…».
 # Solo se une si lo que sigue también parece URL (tiene / o un punto interno): «https://x.org/ and» queda igual.
-URL_PARTIDA = re.compile(r"(https?://\S*[/.\-]) (?=[\w%]\S*?[/.]\w)")
-NEGRITA_CON_ESPACIO = re.compile(r"\*\*(\S[^*\n]*?)\s+\*\*")
+# Un solo intento por palabra (grupo atómico y `\S++`): probar cada `https://` de una palabra larga sería cuadrático.
+URL_PARTIDA = re.compile(r"(?<!\S)((?>\S*?https?://)\S++(?<=[/.\-])) (?=[\w%]\S*?[/.]\w)")
+# Greedy y terminada en no-espacio: la versión perezosa con `\s+` era cuadrática con una racha larga de espacios.
+NEGRITA_CON_ESPACIO = re.compile(r"\*\*(\S(?:[^*\n]*[^*\s])?)\s+\*\*")
 
 
 FORMULA_OMITIDA = "*[fórmula no convertida: consúltala en el original]*"
@@ -170,7 +171,7 @@ def _quitar_texto_vertical(md):
 def _limpiar(md):
     md = _quitar_texto_vertical(md)
     md = md.replace("<!-- formula-not-decoded -->", FORMULA_OMITIDA)  # Docling: que no desaparezca en silencio
-    md = COMENTARIO.sub("", md)  # marcas «Start/End of picture text» del modo layout
+    md = quitar_comentarios(md)  # marcas «Start/End of picture text» del modo layout
     md = NEGRITA_CON_ESPACIO.sub(r"**\1** ", md)
     return unir_acentos(URL_PARTIDA.sub(r"\1", md))
 

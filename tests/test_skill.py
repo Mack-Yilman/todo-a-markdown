@@ -96,6 +96,13 @@ class Instalador(unittest.TestCase):
         self.assertFalse(datos.startswith(b"\xef\xbb\xbf"))
         datos.decode("ascii")
 
+    def test_no_reenvia_argumentos_por_cmd(self):
+        # cmd.exe reinterpreta & en %*: un archivo «a&calc&.pdf» ejecutaría comandos.
+        texto = leer("install.ps1")
+        self.assertNotIn('WriteAllText((Join-Path $bin "$nombre.cmd")', texto)
+        self.assertNotIn('" -m todo_a_markdown %*', texto)
+        self.assertIn('-m todo_a_markdown `"`$@`"', texto)
+
     def test_baja_la_misma_lista_que_la_carpeta(self):
         lista = re.search(r"\$archivos = (.*)", leer("install.ps1")).group(1)
         self.assertEqual(sorted(re.findall(r"'([^']+)'", lista)), sorted(os.listdir(SKILL)))

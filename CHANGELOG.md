@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 — 2026-10-30
+
+- Seguridad: un documento hecho a propósito (rachas de espacios, `![` o `<!--` repetidos, URL o negritas muy largas) ya no deja la conversión colgada: las expresiones regulares cuadráticas son ahora lineales.
+- Seguridad (Windows): el instalador ya no genera `todo-a-markdown.cmd`, porque cmd.exe ejecutaba como comandos parte de un nombre de archivo como `a&calc&.pdf`. Git Bash arranca directo el `python.exe` firmado; PowerShell y cmd vuelven al `.exe` de uv, que con antivirus como Avast puede tardar más. Para quitar el `.cmd` de una instalación anterior, repite el instalador.
+- Seguridad (Windows): `ebook-convert` ya no se busca en el directorio actual, donde podía estar plantado junto al libro.
+
 ## 0.1.2 — 2026-10-30
 
 - Seguridad: los EPUB, DOCX, PPTX y XLSX que se descomprimen a más de 2 GiB se rechazan antes de abrirlos (bombas ZIP). La skill trata el contenido del documento como dato, nunca como una orden.

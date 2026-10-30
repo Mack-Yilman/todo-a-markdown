@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import zipfile
 
-from .comun import extraer_data_uris, quitar_data_uris, verificar_zip
+from .comun import extraer_data_uris, quitar_comentarios, quitar_data_uris, verificar_zip
 
 # Calibre no agrega ebook-convert al PATH en macOS, y en Windows solo al abrir una sesión nueva.
 CALIBRE_RUTAS = (r"C:\Program Files\Calibre2\ebook-convert.exe", "/Applications/calibre.app/Contents/MacOS/ebook-convert")
@@ -19,7 +19,7 @@ def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
         with zipfile.ZipFile(ruta) as z:
             verificar_zip(z)
     res = MarkItDown().convert(ruta, keep_data_uris=True)
-    md = re.sub(r"[ \t]*<!--.*?-->[ \t]*\n?", "", res.markdown, flags=re.S)  # «<!-- Slide number: 1 -->»
+    md = quitar_comentarios(res.markdown)  # «<!-- Slide number: 1 -->»
     # Una tabla de Word sin fila de encabezado sale con un encabezado vacío: la primera fila real pasa a serlo.
     md = re.sub(r"(?m)^\|(?:[ \t]*\|)+\n(\|(?:[ \t]*:?-+:?[ \t]*\|)+)\n(\|.*\|)$", r"\2\n\1", md)
     if ruta.lower().endswith(".pptx"):
@@ -28,9 +28,22 @@ def convertir(ruta, carpeta_adj, carpeta_rel, prefijo):
     return md, (res.title or "").strip()
 
 
+def buscar_calibre():
+    """Nunca devuelve un `ebook-convert` del directorio actual: en Windows, `which` lo antepone al PATH y podría estar plantado junto al libro."""
+    fija = next((r for r in CALIBRE_RUTAS if os.path.exists(r)), None)
+    if fija:
+        return fija
+    os.environ["NoDefaultCurrentDirectoryInExePath"] = "1"
+    absolutas = [p for p in os.environ.get("PATH", "").split(os.pathsep) if os.path.isabs(p)]
+    exe = shutil.which("ebook-convert", path=os.pathsep.join(absolutas))
+    if exe and os.path.normcase(os.path.dirname(os.path.abspath(exe))) == os.path.normcase(os.getcwd()):
+        return None
+    return exe
+
+
 def calibre_a_epub(ruta, carpeta_tmp):
     """Devuelve la ruta de un EPUB temporal convertido con `ebook-convert` de Calibre."""
-    exe = shutil.which("ebook-convert") or next((r for r in CALIBRE_RUTAS if os.path.exists(r)), None)
+    exe = buscar_calibre()
     if not exe:
         raise RuntimeError("este formato necesita Calibre (ebook-convert); instálalo desde https://calibre-ebook.com")
     destino = os.path.join(carpeta_tmp, "libro.epub")

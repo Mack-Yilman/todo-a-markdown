@@ -1,6 +1,6 @@
 [project]
 name = "todo-a-markdown"
-version = "0.1.2"
+version = "0.1.3"
 description = "Convierte EPUB, PDF, DOCX, PPTX, XLSX y HTML a Markdown limpio para Obsidian y LLM, con informe de calidad."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
