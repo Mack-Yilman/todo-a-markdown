@@ -8,7 +8,7 @@ from collections import Counter
 from .comun import WIKILINK_FALSO, contar_palabras
 
 MOJIBAKE = re.compile(r"Ã[\x80-\xbf]|â€|Â[\xa0-\xbf]")
-IMAGEN = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+IMAGEN = re.compile(r"!\[[^\[\]]*\]\(([^)\[\n]+)\)")  # sin `[` para que `![![![…` no sea cuadrático
 TITULO = re.compile(r"^(#{1,6}) \S", re.M)
 
 # Umbrales (calibrados con el corpus de ejemplos/; ver CLAUDE.md antes de cambiarlos).

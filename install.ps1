@@ -100,19 +100,17 @@ param([string]$Destino, [switch]$Ocr, [switch]$Docling, [switch]$Calibre)
     }
 
     # El .exe que genera uv no esta firmado y cambia en cada instalacion, asi que los antivirus lo aislan (Autosandbox de Avast).
-    # Se reemplaza por lanzadores de texto que arrancan el python.exe firmado del entorno: uno para cmd y PowerShell, otro para Git Bash.
-    # shortcut: "uv tool upgrade" vuelve a crear el .exe, que sigue funcionando; repetir este instalador lo quita.
+    # Git Bash usa un lanzador de texto que arranca el python.exe firmado del entorno. PowerShell y cmd usan el .exe: es mas lento con esos
+    # antivirus, pero un .cmd no es una alternativa, porque cmd.exe reinterpreta & en %* y un nombre como a&calc&.pdf ejecutaria comandos.
     function Install-Lanzador {
         if ([IO.Path]::DirectorySeparatorChar -ne '\') { return }
         $bin = "$(& uv tool dir --bin)".Trim()
         $python = Join-Path "$(& uv tool dir)".Trim() "$nombre\Scripts\python.exe"
         if (-not (Test-Path $python)) { return }
-        # El .cmd se lee con la pagina de codigos de la consola: %APPDATA% evita escribir tildes del nombre de usuario.
-        $python = $python.Replace($env:APPDATA, '%APPDATA%')
+        $python = $python.Replace('\', '/').Replace("'", "'\''")
         $sinBom = New-Object Text.UTF8Encoding($false)
-        [IO.File]::WriteAllText((Join-Path $bin "$nombre.cmd"), "@`"$python`" -m todo_a_markdown %*`r`n", $sinBom)
-        [IO.File]::WriteAllText((Join-Path $bin $nombre), "#!/bin/sh`nexec `"`$(dirname `"`$0`")/$nombre.cmd`" `"`$@`"`n", $sinBom)
-        Remove-Item (Join-Path $bin "$nombre.exe") -Force -ErrorAction SilentlyContinue
+        [IO.File]::WriteAllText((Join-Path $bin $nombre), "#!/bin/sh`nexec '$python' -m todo_a_markdown `"`$@`"`n", $sinBom)
+        Remove-Item (Join-Path $bin "$nombre.cmd") -Force -ErrorAction SilentlyContinue  # lo dejaba la 0.1.2
     }
 
     function Install-Uv {

@@ -61,11 +61,11 @@ Calibre se instala aparte, con `winget install calibre.calibre` en Windows o des
 
 ### Con antivirus (Avast, AVG y otros)
 
-No hace falta desactivar nada ni agregar excepciones si usas el instalador de Windows. uv genera un `todo-a-markdown.exe` sin firmar y distinto en cada instalación, y el Python que descarga tampoco está firmado, así que antivirus como Avast los aíslan o los interceptan (CyberCapture). Por eso el instalador usa o instala un Python firmado con winget y deja lanzadores de texto que arrancan el `python.exe` firmado del entorno. Sin antivirus funciona igual.
+No hace falta desactivar nada ni agregar excepciones si usas el instalador de Windows. uv genera un `todo-a-markdown.exe` sin firmar y distinto en cada instalación, y el Python que descarga tampoco está firmado, así que antivirus como Avast los aíslan o los interceptan (CyberCapture). Por eso el instalador usa o instala un Python firmado con winget y, para Git Bash, deja un lanzador de texto que arranca el `python.exe` firmado del entorno. En PowerShell y cmd se usa el `.exe`: funciona, pero el antivirus puede hacerlo más lento (15 s frente a 6 s, medido con Avast); no se usa un `.cmd` porque cmd.exe ejecutaría como comandos parte de un nombre de archivo como `a&calc&.pdf`. Sin antivirus funciona igual.
 
 - **Si instalaste con `uv tool install` o `pip` en Windows** y el antivirus interviene, ejecuta el instalador, o llama a la CLI así: `python -m todo_a_markdown`, con el Python donde la instalaste.
 - **Tras `uv tool upgrade`** vuelve el `.exe`, que funciona pero puede tardar más: repite el instalador para quitarlo.
-- **Para desinstalar:** `uv tool uninstall todo-a-markdown` y borra `todo-a-markdown` y `todo-a-markdown.cmd` de `~/.local/bin`.
+- **Para desinstalar:** `uv tool uninstall todo-a-markdown` y borra `todo-a-markdown` de `~/.local/bin`.
 
 ### Solo la skill
 

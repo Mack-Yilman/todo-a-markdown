@@ -65,7 +65,8 @@ def enlace_imagen(carpeta_rel, archivo, alt=""):
 
 EXTENSIONES_IMAGEN = {"png": "png", "jpeg": "jpg", "jpg": "jpg", "gif": "gif", "webp": "webp", "bmp": "bmp", "tiff": "tiff",
                       "svg+xml": "svg", "x-emf": "emf", "emf": "emf", "x-wmf": "wmf", "wmf": "wmf"}
-DATA_URI = re.compile(r"!\[([^\]]*)\]\(data:image/([\w.+-]+);base64,([A-Za-z0-9+/=\s]+)\)")
+# El alt excluye `[`: así cada intento acaba en el siguiente `![` y una repetición sin cierre no es cuadrática.
+DATA_URI = re.compile(r"!\[([^\[\]]*)\]\(data:image/([\w.+-]+);base64,([A-Za-z0-9+/=\s]+)\)")
 
 
 def extraer_data_uris(md, carpeta_adj, carpeta_rel, prefijo):
@@ -97,5 +98,19 @@ def quitar_data_uris(md):
 
 
 def limpiar_saltos(md):
-    md = re.sub(r"[ \t]+\n", "\n", md)
+    # Sin regex: `[ \t]+\n` es cuadrático con una racha larga de espacios que no acaba en salto de línea.
+    md = "\n".join(linea.rstrip(" \t") for linea in md.split("\n"))
     return re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
+
+
+def quitar_comentarios(md):
+    """Quita los `<!-- … -->`, los espacios que los rodean y un salto de línea. Sin regex: `.*?-->` es cuadrático con muchos `<!--` sin cerrar."""
+    partes, pos = [], 0
+    while (ini := md.find("<!--", pos)) != -1 and (fin := md.find("-->", ini)) != -1:
+        partes.append(md[pos:ini].rstrip(" \t"))
+        pos = fin + 3
+        while md[pos:pos + 1] in (" ", "\t"):
+            pos += 1
+        if md[pos:pos + 1] == "\n":
+            pos += 1
+    return "".join(partes) + md[pos:]
